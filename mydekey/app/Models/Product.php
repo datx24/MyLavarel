@@ -11,6 +11,10 @@ class Product extends Model
     // Các cột có thể gán giá trị hàng loạt
     protected $fillable = [
         'name',
-        'price'
+        'description',
+        'price',
+        'stock',
+        'image',
+        'category_id',
     ];
 }

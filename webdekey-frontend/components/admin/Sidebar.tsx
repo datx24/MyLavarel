@@ -8,6 +8,7 @@ const Sidebar = () => {
   const menu = [
     { label: "Dashboard", href: "/admin/dashboard" },
     { label: "Categories", href: "/admin/categories" },
+    { label: "Products", href: "/admin/products" },
     { label: "Users", href: "/admin/users" },
   ];
 
