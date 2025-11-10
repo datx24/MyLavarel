@@ -14,7 +14,6 @@ class CategoryController extends Controller
      */
     public function index()
     {
-        //
         return response()->json(Category::all());
     }
 
@@ -36,20 +35,25 @@ class CategoryController extends Controller
      */
     public function store(Request $request)
     {
-        //
-        $category = Category::create($request->only(['name']));
-        return response()->json($category, 201);
+        //Kiểm tra dữ liệu đầu vào
+        $validated = $request->validate([
+            'name' => 'required|string|max:255|unique:categories,name',
+        ]);
+        //Tạo mới danh mục
+        $category = Category::create($validated );
+        return response()->json(['message' => 'Tạo danh mục thành công', 'data' => $category], 201);
     }
 
     /**
-     * Display the specified resource.
-     *
-     * @param  \App\Models\category  $category
-     * @return \Illuminate\Http\Response
+     * Hiển thị thông tin 1 category cụ thể
      */
-    public function show(category $category)
+    public function show($id)
     {
-        //
+        $category = Category::find($id);
+        if(!$category){
+            return response()->json(['message' => 'Danh mục không tồn tại'], 404);
+        }
+        return response()->json($category, 200);
     }
 
     /**
@@ -64,25 +68,37 @@ class CategoryController extends Controller
     }
 
     /**
-     * Update the specified resource in storage.
-     *
-     * @param  \Illuminate\Http\Request  $request
-     * @param  \App\Models\category  $category
-     * @return \Illuminate\Http\Response
+     * Cập nhật thông tin danh mục
      */
-    public function update(Request $request, category $category)
+    public function update(Request $request, $id)
     {
-        //
+        $category = Category::find($id);
+
+        if(!$category){
+            return response()->json(['message' => 'Danh mục không tồn tại'], 404);
+        }
+
+        $validated = $request->validate([
+            'name' => 'required|string|max:255|unique:categories,name,'.$id,
+        ]);
+
+        $category ->update($validated);
+        return response()->json(['message' => 'Cập nhật danh mục thành công', 'data' => $category], 200);
     }
 
     /**
-     * Remove the specified resource from storage.
-     *
-     * @param  \App\Models\category  $category
-     * @return \Illuminate\Http\Response
+     * Xóa danh mục
      */
-    public function destroy(category $category)
+    public function destroy($id)
     {
-        //
+        $category = Category::find($id);
+
+        if(!$category){
+            return response()->json(['message' => 'Danh mục không tồn tại'], 404);
+        }   
+
+        $category->delete();
+
+        return response()->json(['message' => 'Xóa danh mục thành công'], 200);
     }
 }
