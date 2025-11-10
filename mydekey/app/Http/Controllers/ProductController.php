@@ -3,28 +3,38 @@
 namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
+use App\Models\Product;
 
 class ProductController extends Controller
 {
-    //Dữ liệu demo
-    private $products = [
-        ['id' => 1, 'name' => 'Product A', 'price' => 100],
-        ['id' => 2, 'name' => 'Product B', 'price' => 200],
-        ['id' => 3, 'name' => 'Product C', 'price' => 300],
-    ];
+   public function index() {
+    return response()->json(Product::all());
+   }
 
-    //Lấy tất cả sản phẩm
-    public function index(){
-        return response()->json($this->products);
+   public function show($id) {
+    $product = Product::find($id);
+    if (!$product) {
+        return response()->json(['message'=> 'Not Found'], 404);
+    }
+    return response()->json($product);
+   }
+
+   public function store(Requets $request) {
+    $product = Product::create($request->only(['name', 'price']));
+    return response()->json($product, 201);
+   }
+
+   public function update(Request $request, $id) {
+        $product = Product::find($id);
+        if (!$product) return response()->json(['message' => 'Not found'], 404);
+        $product->update($request->only(['name','price']));
+        return response()->json($product);
     }
 
-    //Lấy chi tiết sản phẩm theo ID
-    public function show($id){
-        foreach ($this->products as $product){
-            if ($product['id'] == (int)$id){
-                return response()->json($product);
-            }
-        }
-        return response()->json(['message' => 'Product not found'], 404);
+    public function destroy($id) {
+        $product = Product::find($id);
+        if (!$product) return response()->json(['message' => 'Not found'], 404);
+        $product->delete();
+        return response()->json(['message' => 'Deleted']);
     }
 }

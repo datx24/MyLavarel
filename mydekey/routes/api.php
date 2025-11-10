@@ -3,6 +3,7 @@
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\ProductController;
+use App\Http\Controllers\CategoryController;
 
 /*
 |--------------------------------------------------------------------------
@@ -19,9 +20,6 @@ Route::middleware('auth:sanctum')->get('/user', function (Request $request) {
     return $request->user();
 });
 
-Route::get('/products', [ProductController::class, 'index']); //hiện danh sách
-Route::get('/products/{id}', [ProductController::class, 'show']); //chi tiết
-Route::post('/products', [ProductController::class, 'store']); //tạo mới
-Route::put('/products/{id}', [ProductController::class, 'update']); //cập nhật
-Route::delete('/products/{id}', [ProductController::class, 'destroy']); //xóa
+Route::apiResource('products', ProductController::class);
+Route::apiResource('categories', CategoryController::class);
 
