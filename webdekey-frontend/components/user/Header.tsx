@@ -1,8 +1,28 @@
 // components/Header.tsx
+"use client"
 import Image from "next/image";
 import { ShoppingCart, Search, Menu } from "lucide-react";
+import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 
 export default function Header() {
+  const router = useRouter();
+  const [cartCount, setCartCount] = useState(0);
+
+  useEffect(() => {
+    const updateCartCount = () => {
+      const cart = JSON.parse(localStorage.getItem('cart') || '[]');
+      const totalItems = cart.reduce((sum: number, item: any) => sum + item.quantity, 0);
+      setCartCount(totalItems);
+    };
+
+    updateCartCount();
+    window.addEventListener('storage', updateCartCount);
+
+    return () => {
+      window.removeEventListener('storage', updateCartCount);
+    };
+  }, []);
   return (
     <header className="fixed top-0 left-0 right-0 z-50 bg-[#202121] shadow-lg">
       <div className="max-w-screen-2xl mx-auto px-4">
@@ -35,9 +55,16 @@ export default function Header() {
               <Search className="absolute left-3 top-2.5 w-5 h-5 text-gray-400" />
             </div>
 
-            <button className="relative p-2 hover:bg-gray-800 rounded-full transition">
+            <button
+              onClick={() => router.push('/cart')}
+              className="relative p-2 hover:bg-gray-800 rounded-full transition"
+            >
               <ShoppingCart className="w-6 h-6 text-white" />
-              <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">3</span>
+              {cartCount > 0 && (
+                <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">
+                  {cartCount}
+                </span>
+              )}
             </button>
 
             <button className="lg:hidden">

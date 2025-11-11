@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import api from "@/utils/api";
 import Image from "next/image";
 import Header from "@/components/user/Header";
@@ -19,12 +19,52 @@ interface Product {
   is_hot?: boolean;
 }
 
+interface CartItem {
+  product_id: number;
+  quantity: number;
+  name: string;
+  price: number;
+  image: string;
+}
+
 export default function ProductDetailPage() {
   const params = useParams();
+  const router = useRouter();
   const id = params.id as string;
   const [product, setProduct] = useState<Product | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  const handleAddToCart = () => {
+    if (!product) return;
+
+    // Lấy giỏ hàng hiện tại từ localStorage
+    const cart = JSON.parse(localStorage.getItem('cart') || '[]');
+
+    // Kiểm tra sản phẩm đã có trong giỏ hàng chưa
+    const existingItem = cart.find((item: CartItem) => item.product_id === product.id);
+
+    if (existingItem) {
+      existingItem.quantity += 1;
+    } else {
+      cart.push({
+        product_id: product.id,
+        quantity: 1,
+        name: product.name,
+        price: product.price,
+        image: product.image,
+      });
+    }
+
+    // Lưu lại vào localStorage
+    localStorage.setItem('cart', JSON.stringify(cart));
+    alert(`Đã thêm ${product.name} vào giỏ hàng!`);
+  };
+
+  const handleBuyNow = () => {
+    // Logic để mua ngay - chuyển đến trang thanh toán
+    router.push(`/cart?product=${id}`);
+  };
 
   useEffect(() => {
     const fetchProduct = async () => {
@@ -109,10 +149,16 @@ export default function ProductDetailPage() {
                   </span>
                 </div>
                 <div className="mb-6 flex gap-4">
-                  <button className="flex-1 bg-orange-600 hover:bg-orange-700 text-white font-bold py-4 px-6 rounded-lg transition duration-300 shadow-lg">
+                  <button
+                    onClick={handleAddToCart}
+                    className="flex-1 bg-orange-600 hover:bg-orange-700 text-white font-bold py-4 px-6 rounded-lg transition duration-300 shadow-lg"
+                  >
                     Thêm vào giỏ hàng
                   </button>
-                  <button className="flex-1 bg-green-600 hover:bg-green-700 text-white font-bold py-4 px-6 rounded-lg transition duration-300 shadow-lg">
+                  <button
+                    onClick={handleBuyNow}
+                    className="flex-1 bg-green-600 hover:bg-green-700 text-white font-bold py-4 px-6 rounded-lg transition duration-300 shadow-lg"
+                  >
                     Mua ngay
                   </button>
                 </div>
