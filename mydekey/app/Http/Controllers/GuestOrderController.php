@@ -36,11 +36,19 @@ class GuestOrderController extends Controller
 
         foreach ($request->items as $item) {
             $product = \App\Models\Product::find($item['product_id']);
-            
+
             // CHỐNG HACK: GIÁ LẤY TỪ DB, KHÔNG TIN FRONTEND
             $price = $product->price; // hoặc $product->sale_price nếu có
             $qty   = $item['quantity'];
-            
+
+            // Kiểm tra tồn kho
+            if ($product->stock < $qty) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Sản phẩm ' . $product->name . ' không đủ tồn kho. Tồn kho hiện tại: ' . $product->stock
+                ], 400);
+            }
+
             $subtotal += $price * $qty;
 
             $orderItems[] = [
@@ -78,6 +86,10 @@ class GuestOrderController extends Controller
                 'quantity'   => $i['quantity'],
                 'price'      => $i['price'],
             ]);
+
+            // Giảm tồn kho
+            $product = \App\Models\Product::find($i['product_id']);
+            $product->decrement('stock', $i['quantity']);
         }
 
         DB::commit();

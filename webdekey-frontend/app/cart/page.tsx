@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import Image from "next/image";
 import Header from "@/components/user/Header";
 import Footer from "@/components/user/Footer";
@@ -16,6 +16,7 @@ interface CartItem {
 
 export default function CartPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [cartItems, setCartItems] = useState<CartItem[]>([]);
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
@@ -34,8 +35,40 @@ export default function CartPage() {
 
   useEffect(() => {
     const cart = JSON.parse(localStorage.getItem('cart') || '[]');
-    setCartItems(cart);
-  }, []);
+    const productId = searchParams.get('product');
+
+    if (productId) {
+      // Nếu có productId từ query, thêm sản phẩm vào giỏ hàng
+      const fetchProduct = async () => {
+        try {
+          const res = await api.get(`/products/${productId}`);
+          const product = res.data;
+          const existingItem = cart.find((item: CartItem) => item.product_id === product.id);
+
+          if (existingItem) {
+            existingItem.quantity += 1;
+          } else {
+            cart.push({
+              product_id: product.id,
+              quantity: 1,
+              name: product.name,
+              price: product.price,
+              image: product.image,
+            });
+          }
+
+          localStorage.setItem('cart', JSON.stringify(cart));
+          setCartItems(cart);
+        } catch (error) {
+          console.error('Error fetching product:', error);
+        }
+      };
+
+      fetchProduct();
+    } else {
+      setCartItems(cart);
+    }
+  }, [searchParams]);
 
   const updateQuantity = (productId: number, newQuantity: number) => {
     if (newQuantity <= 0) {
