@@ -11,18 +11,20 @@ return new class extends Migration
      *
      * @return void
      */
-        public function up()
+    public function up()
     {
         Schema::create('order_items', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('order_id')->constrained()->onDelete('cascade');
-            $table->foreignId('product_id')->constrained()->onDelete('cascade');
+            $table->unsignedBigInteger('order_id');
+            $table->unsignedBigInteger('product_id');
             $table->integer('quantity');
-            $table->decimal('price', 10, 2);
+            $table->decimal('price', 10, 2); // giá tại thời điểm mua
             $table->timestamps();
+
+            $table->foreign('order_id')->references('id')->on('orders')->onDelete('cascade');
+            $table->foreign('product_id')->references('id')->on('products')->onDelete('restrict');
         });
     }
-
     /**
      * Reverse the migrations.
      *
