@@ -103,40 +103,50 @@ export default function ProductsPage() {
   };
 
   const saveProduct = async () => {
-    if (!form.name.trim()) return alert("Nhập tên sản phẩm!");
-    if (!form.price.trim()) return alert("Nhập giá bán!");
-    setLoading(true);
-    try {
-      const data = new FormData();
-      data.append("name", form.name);
-      data.append("price", form.price);
-      if (form.original_price.trim()) data.append("original_price", form.original_price);
-      data.append("stock", form.stock);
-      data.append("category_id", form.category_id);
-      data.append("description", editor?.getHTML() || "");
-      data.append("is_new", form.is_new ? "1" : "0");
-      data.append("is_hot", form.is_hot ? "1" : "0");
-      if (form.image) data.append("image", form.image);
+  if (!form.name.trim()) return alert("Nhập tên sản phẩm!");
+  if (!form.price.trim()) return alert("Nhập giá bán!");
+  if (!form.stock.trim()) return alert("Nhập số lượng!");
+  if (!form.category_id) return alert("Chọn danh mục!");
 
-      if (editingProductId) {
-        await api.put(`/products/${editingProductId}`, data, {
-          headers: { 'Content-Type': 'multipart/form-data' }
-        });
-      } else {
-        await api.post("/products", data, {
-          headers: { 'Content-Type': 'multipart/form-data' }
-        });
-      }
+  setLoading(true);
+  
+  // BẮT ĐẦU TẠO FORMDATA
+  const data = new FormData();
 
-      await fetchProducts();
-      closeForm();
-    } catch (err: any) {
-      console.error(err.response?.data);
-      alert(JSON.stringify(err.response?.data?.errors, null, 2));
-    } finally {
-      setLoading(false);
+  data.append("name", form.name);
+  data.append("price", form.price);
+  if (form.original_price.trim()) data.append("original_price", form.original_price);
+  data.append("stock", form.stock);
+  data.append("category_id", form.category_id);
+  data.append("description", editor?.getHTML() || "");
+  data.append("is_new", form.is_new ? "1" : "0");
+  data.append("is_hot", form.is_hot ? "1" : "0");
+  if (form.image) data.append("image", form.image);
+
+  // THÊM DÒNG NÀY NGAY SAU KHI APPEND XONG – CHỖ DUY NHẤT!
+  console.log("FormData đang gửi:", [...data.entries()]);
+
+  // Nếu sửa sản phẩm → thêm _method
+  if (editingProductId) {
+    data.append("_method", "PUT");
+  }
+
+  try {
+    if (editingProductId) {
+      await api.post(`/products/${editingProductId}`, data);
+    } else {
+      await api.post("/products", data);
     }
-  };
+
+    await fetchProducts();
+    closeForm();
+    alert("Lưu sản phẩm thành công!");
+  } catch (err: any) {
+    // ... xử lý lỗi
+  } finally {
+    setLoading(false);
+  }
+};
 
   const deleteProduct = async (id: number) => {
     if (!confirm("Bạn có chắc muốn xóa sản phẩm này?")) return;
@@ -160,130 +170,140 @@ export default function ProductsPage() {
       </button>
 
       {showForm && (
-        <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 z-50">
-          <div className="bg-white p-5 rounded w-full max-w-xl relative text-black">
+        <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 z-50 p-4">
+          <div className="bg-white rounded-lg shadow-xl w-full max-w-4xl max-h-[90vh] overflow-y-auto relative text-black">
             <button
               onClick={closeForm}
-              className="absolute top-2 right-2 text-red-500 font-bold"
+              className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 transition-colors"
             >
-              X
+              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
             </button>
-            <h2 className="text-xl font-bold mb-3">
-              {editingProductId ? "Sửa sản phẩm" : "Thêm sản phẩm"}
-            </h2>
-            <div className="flex flex-col gap-3">
-              <div>
-                <label className="block text-sm font-medium mb-1">Tên sản phẩm</label>
-                <input
-                  value={form.name}
-                  onChange={(e) => setForm({ ...form, name: e.target.value })}
-                  placeholder="Nhập tên sản phẩm"
-                  className="w-full border border-gray-300 p-3 rounded-lg text-black focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                />
-              </div>
+            <div className="p-6">
+              <h2 className="text-2xl font-bold mb-6 text-center">
+                {editingProductId ? "Sửa sản phẩm" : "Thêm sản phẩm"}
+              </h2>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-sm font-medium mb-2">Tên sản phẩm</label>
+                    <input
+                      value={form.name}
+                      onChange={(e) => setForm({ ...form, name: e.target.value })}
+                      placeholder="Nhập tên sản phẩm"
+                      className="w-full border border-gray-300 p-3 rounded-lg text-black focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    />
+                  </div>
 
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-sm font-medium mb-1">Giá gốc</label>
-                  <input
-                    value={form.original_price}
-                    onChange={(e) => setForm({ ...form, original_price: e.target.value })}
-                    placeholder="Giá gốc (tùy chọn)"
-                    type="number"
-                    className="w-full border border-gray-300 p-3 rounded-lg text-black focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  />
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-sm font-medium mb-2">Giá gốc</label>
+                      <input
+                        value={form.original_price}
+                        onChange={(e) => setForm({ ...form, original_price: e.target.value })}
+                        placeholder="Giá gốc (tùy chọn)"
+                        type="number"
+                        className="w-full border border-gray-300 p-3 rounded-lg text-black focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium mb-2">Giá bán</label>
+                      <input
+                        value={form.price}
+                        onChange={(e) => setForm({ ...form, price: e.target.value })}
+                        placeholder="Giá bán"
+                        type="number"
+                        className="w-full border border-gray-300 p-3 rounded-lg text-black focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium mb-2">Số lượng</label>
+                    <input
+                      value={form.stock}
+                      onChange={(e) => setForm({ ...form, stock: e.target.value })}
+                      placeholder="Nhập số lượng"
+                      type="number"
+                      className="w-full border border-gray-300 p-3 rounded-lg text-black focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium mb-2">Danh mục</label>
+                    <select
+                      value={form.category_id}
+                      onChange={(e) =>
+                        setForm({ ...form, category_id: e.target.value })
+                      }
+                      className="w-full border border-gray-300 p-3 rounded-lg text-black focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    >
+                      <option value="">Chọn danh mục</option>
+                      {categories.map((c) => (
+                        <option key={c.id} value={String(c.id)}>
+                          {c.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
                 </div>
-                <div>
-                  <label className="block text-sm font-medium mb-1">Giá bán</label>
-                  <input
-                    value={form.price}
-                    onChange={(e) => setForm({ ...form, price: e.target.value })}
-                    placeholder="Giá bán"
-                    type="number"
-                    className="w-full border border-gray-300 p-3 rounded-lg text-black focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  />
+
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-sm font-medium mb-2">Hình ảnh</label>
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={(e) =>
+                        setForm({ ...form, image: e.target.files?.[0] || null })
+                      }
+                      className="w-full text-black file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="flex items-center space-x-2">
+                      <input
+                        type="checkbox"
+                        id="is_new"
+                        checked={form.is_new}
+                        onChange={(e) => setForm({ ...form, is_new: e.target.checked })}
+                        className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500"
+                      />
+                      <label htmlFor="is_new" className="text-sm font-medium text-gray-700">Sản phẩm mới</label>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <input
+                        type="checkbox"
+                        id="is_hot"
+                        checked={form.is_hot}
+                        onChange={(e) => setForm({ ...form, is_hot: e.target.checked })}
+                        className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500"
+                      />
+                      <label htmlFor="is_hot" className="text-sm font-medium text-gray-700">Sản phẩm hot</label>
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium mb-2">Mô tả</label>
+                    <EditorContent
+                      editor={editor}
+                      className="border border-gray-300 p-3 rounded-lg min-h-[120px] text-black focus-within:ring-2 focus-within:ring-blue-500"
+                    />
+                  </div>
                 </div>
               </div>
 
-              <div>
-                <label className="block text-sm font-medium mb-1">Số lượng</label>
-                <input
-                  value={form.stock}
-                  onChange={(e) => setForm({ ...form, stock: e.target.value })}
-                  placeholder="Nhập số lượng"
-                  type="number"
-                  className="w-full border border-gray-300 p-3 rounded-lg text-black focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium mb-1">Danh mục</label>
-                <select
-                  value={form.category_id}
-                  onChange={(e) =>
-                    setForm({ ...form, category_id: e.target.value })
-                  }
-                  className="w-full border border-gray-300 p-3 rounded-lg text-black focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              <div className="mt-6 flex justify-end">
+                <button
+                  onClick={saveProduct}
+                  disabled={loading}
+                  className="bg-green-600 hover:bg-green-700 disabled:bg-gray-400 text-white px-6 py-3 rounded-lg font-semibold transition-colors"
                 >
-                  <option value="">Chọn danh mục</option>
-                  {categories.map((c) => (
-                    <option key={c.id} value={String(c.id)}>
-                      {c.name}
-                    </option>
-                  ))}
-                </select>
+                  {loading ? "Đang lưu..." : "Lưu sản phẩm"}
+                </button>
               </div>
-
-              <div>
-                <label className="block text-sm font-medium mb-1">Hình ảnh</label>
-                <input
-                  type="file"
-                  accept="image/*"
-                  onChange={(e) =>
-                    setForm({ ...form, image: e.target.files?.[0] || null })
-                  }
-                  className="w-full text-black file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div className="flex items-center space-x-2">
-                  <input
-                    type="checkbox"
-                    id="is_new"
-                    checked={form.is_new}
-                    onChange={(e) => setForm({ ...form, is_new: e.target.checked })}
-                    className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500"
-                  />
-                  <label htmlFor="is_new" className="text-sm font-medium text-gray-700">Sản phẩm mới</label>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <input
-                    type="checkbox"
-                    id="is_hot"
-                    checked={form.is_hot}
-                    onChange={(e) => setForm({ ...form, is_hot: e.target.checked })}
-                    className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500"
-                  />
-                  <label htmlFor="is_hot" className="text-sm font-medium text-gray-700">Sản phẩm hot</label>
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium mb-1">Mô tả</label>
-                <EditorContent
-                  editor={editor}
-                  className="border border-gray-300 p-3 rounded-lg min-h-[150px] text-black focus-within:ring-2 focus-within:ring-blue-500"
-                />
-              </div>
-
-              <button
-                onClick={saveProduct}
-                disabled={loading}
-                className="w-full bg-green-600 hover:bg-green-700 disabled:bg-gray-400 text-white p-3 rounded-lg font-semibold transition-colors"
-              >
-                {loading ? "Đang lưu..." : "Lưu sản phẩm"}
-              </button>
             </div>
           </div>
         </div>
