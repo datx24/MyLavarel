@@ -21,6 +21,9 @@ return new class extends Migration
             $table->integer('stock')->default(0);
             $table->string('image')->nullable();
             $table->foreignId('category_id')->constrained()->cascadeOnDelete();
+            $table->decimal('original_price', 10, 2)->nullable()->after('price');
+            $table->boolean('is_new')->default(false)->after('original_price');
+            $table->boolean('is_hot')->default(false)->after('is_new');
             $table->timestamps();
         });
     }

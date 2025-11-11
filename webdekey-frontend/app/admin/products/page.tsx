@@ -11,9 +11,12 @@ interface Product {
   name: string;
   description: string;
   price: number;
+  original_price?: number;
   stock: number;
   image?: string;
   category_id: number;
+  is_new?: boolean;
+  is_hot?: boolean;
 }
 
 interface Category {
@@ -31,15 +34,21 @@ export default function ProductsPage() {
   const [form, setForm] = useState<{
     name: string;
     price: string;
+    original_price: string;
     stock: string;
     category_id: string;
     image: File | null;
+    is_new: boolean;
+    is_hot: boolean;
   }>({
     name: "",
     price: "",
+    original_price: "",
     stock: "",
     category_id: "",
     image: null,
+    is_new: false,
+    is_hot: false,
   });
 
   const editor = useEditor({
@@ -64,14 +73,26 @@ export default function ProductsPage() {
       setForm({
         name: product.name,
         price: String(product.price),
+        original_price: product.original_price ? String(product.original_price) : "",
         stock: String(product.stock),
         category_id: String(product.category_id),
         image: null,
+        is_new: product.is_new || false,
+        is_hot: product.is_hot || false,
       });
       editor?.commands.setContent(product.description);
     } else {
       setEditingProductId(null);
-      setForm({ name: "", price: "", stock: "", category_id: "", image: null });
+      setForm({
+        name: "",
+        price: "",
+        original_price: "",
+        stock: "",
+        category_id: "",
+        image: null,
+        is_new: false,
+        is_hot: false,
+      });
       editor?.commands.setContent("");
     }
     setShowForm(true);
@@ -83,20 +104,28 @@ export default function ProductsPage() {
 
   const saveProduct = async () => {
     if (!form.name.trim()) return alert("Nhập tên sản phẩm!");
+    if (!form.price.trim()) return alert("Nhập giá bán!");
     setLoading(true);
     try {
       const data = new FormData();
       data.append("name", form.name);
       data.append("price", form.price);
+      if (form.original_price.trim()) data.append("original_price", form.original_price);
       data.append("stock", form.stock);
       data.append("category_id", form.category_id);
       data.append("description", editor?.getHTML() || "");
+      data.append("is_new", form.is_new ? "1" : "0");
+      data.append("is_hot", form.is_hot ? "1" : "0");
       if (form.image) data.append("image", form.image);
 
       if (editingProductId) {
-        await api.put(`/products/${editingProductId}`, data); 
+        await api.put(`/products/${editingProductId}`, data, {
+          headers: { 'Content-Type': 'multipart/form-data' }
+        });
       } else {
-        await api.post("/products", data);
+        await api.post("/products", data, {
+          headers: { 'Content-Type': 'multipart/form-data' }
+        });
       }
 
       await fetchProducts();
@@ -142,58 +171,116 @@ export default function ProductsPage() {
             <h2 className="text-xl font-bold mb-3">
               {editingProductId ? "Sửa sản phẩm" : "Thêm sản phẩm"}
             </h2>
-            <div className="flex flex-col gap-2">
-              <input
-                value={form.name}
-                onChange={(e) => setForm({ ...form, name: e.target.value })}
-                placeholder="Tên sản phẩm"
-                className="border p-2 rounded text-black"
-              />
-              <input
-                value={form.price}
-                onChange={(e) => setForm({ ...form, price: e.target.value })}
-                placeholder="Giá"
-                type="number"
-                className="border p-2 rounded text-black"
-              />
-              <input
-                value={form.stock}
-                onChange={(e) => setForm({ ...form, stock: e.target.value })}
-                placeholder="Số lượng"
-                type="number"
-                className="border p-2 rounded text-black"
-              />
-              <select
-                value={form.category_id}
-                onChange={(e) =>
-                  setForm({ ...form, category_id: e.target.value })
-                }
-                className="border p-2 rounded text-black"
-              >
-                <option value="">Chọn danh mục</option>
-                {categories.map((c) => (
-                  <option key={c.id} value={String(c.id)}>
-                    {c.name}
-                  </option>
-                ))}
-              </select>
-              <input
-                type="file"
-                accept="image/*"
-                onChange={(e) =>
-                  setForm({ ...form, image: e.target.files?.[0] || null })
-                }
-                className="text-black"
-              />
-              <label className="mt-2 font-semibold">Mô tả:</label>
-              <EditorContent
-                editor={editor}
-                className="border p-2 rounded min-h-[150px] text-black"
-              />
+            <div className="flex flex-col gap-3">
+              <div>
+                <label className="block text-sm font-medium mb-1">Tên sản phẩm</label>
+                <input
+                  value={form.name}
+                  onChange={(e) => setForm({ ...form, name: e.target.value })}
+                  placeholder="Nhập tên sản phẩm"
+                  className="w-full border border-gray-300 p-3 rounded-lg text-black focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-sm font-medium mb-1">Giá gốc</label>
+                  <input
+                    value={form.original_price}
+                    onChange={(e) => setForm({ ...form, original_price: e.target.value })}
+                    placeholder="Giá gốc (tùy chọn)"
+                    type="number"
+                    className="w-full border border-gray-300 p-3 rounded-lg text-black focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium mb-1">Giá bán</label>
+                  <input
+                    value={form.price}
+                    onChange={(e) => setForm({ ...form, price: e.target.value })}
+                    placeholder="Giá bán"
+                    type="number"
+                    className="w-full border border-gray-300 p-3 rounded-lg text-black focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium mb-1">Số lượng</label>
+                <input
+                  value={form.stock}
+                  onChange={(e) => setForm({ ...form, stock: e.target.value })}
+                  placeholder="Nhập số lượng"
+                  type="number"
+                  className="w-full border border-gray-300 p-3 rounded-lg text-black focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium mb-1">Danh mục</label>
+                <select
+                  value={form.category_id}
+                  onChange={(e) =>
+                    setForm({ ...form, category_id: e.target.value })
+                  }
+                  className="w-full border border-gray-300 p-3 rounded-lg text-black focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                >
+                  <option value="">Chọn danh mục</option>
+                  {categories.map((c) => (
+                    <option key={c.id} value={String(c.id)}>
+                      {c.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium mb-1">Hình ảnh</label>
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={(e) =>
+                    setForm({ ...form, image: e.target.files?.[0] || null })
+                  }
+                  className="w-full text-black file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div className="flex items-center space-x-2">
+                  <input
+                    type="checkbox"
+                    id="is_new"
+                    checked={form.is_new}
+                    onChange={(e) => setForm({ ...form, is_new: e.target.checked })}
+                    className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500"
+                  />
+                  <label htmlFor="is_new" className="text-sm font-medium text-gray-700">Sản phẩm mới</label>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <input
+                    type="checkbox"
+                    id="is_hot"
+                    checked={form.is_hot}
+                    onChange={(e) => setForm({ ...form, is_hot: e.target.checked })}
+                    className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500"
+                  />
+                  <label htmlFor="is_hot" className="text-sm font-medium text-gray-700">Sản phẩm hot</label>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium mb-1">Mô tả</label>
+                <EditorContent
+                  editor={editor}
+                  className="border border-gray-300 p-3 rounded-lg min-h-[150px] text-black focus-within:ring-2 focus-within:ring-blue-500"
+                />
+              </div>
+
               <button
                 onClick={saveProduct}
                 disabled={loading}
-                className="bg-green-600 text-white p-2 rounded mt-3"
+                className="w-full bg-green-600 hover:bg-green-700 disabled:bg-gray-400 text-white p-3 rounded-lg font-semibold transition-colors"
               >
                 {loading ? "Đang lưu..." : "Lưu sản phẩm"}
               </button>
@@ -202,48 +289,75 @@ export default function ProductsPage() {
         </div>
       )}
 
-      <table className="w-full border-collapse border border-black bg-white">
-        <thead>
-          <tr className="bg-gray-100 text-black">
-            <th className="border border-black p-2">ID</th>
-            <th className="border border-black p-2">Tên</th>
-            <th className="border border-black p-2">Giá</th>
-            <th className="border border-black p-2">Số lượng</th>
-            <th className="border border-black p-2">Category</th>
-            <th className="border border-black p-2">Thao tác</th>
-          </tr>
-        </thead>
-        <tbody>
-          {products.map((p) => (
-            <tr key={p.id} className="text-black">
-              <td className="border border-black p-2 text-center">{p.id}</td>
-              <td className="border border-black p-2">{p.name}</td>
-              <td className="border border-black p-2">{p.price}</td>
-              <td className="border border-black p-2">{p.stock}</td>
-              <td className="border border-black p-2">
-                {
-                  categories.find((c) => c.id === p.category_id)?.name ||
-                  p.category_id
-                }
-              </td>
-              <td className="border border-black p-2 text-center">
-                <button
-                  onClick={() => openForm(p)}
-                  className="bg-yellow-500 text-white px-3 py-1 rounded mr-2"
-                >
-                  Sửa
-                </button>
-                <button
-                  onClick={() => deleteProduct(p.id)}
-                  className="bg-red-500 text-white px-3 py-1 rounded"
-                >
-                  Xóa
-                </button>
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
+      <div className="bg-white rounded-lg shadow-md overflow-hidden">
+        <div className="overflow-x-auto">
+          <table className="w-full">
+            <thead className="bg-gray-50">
+              <tr>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">ID</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tên sản phẩm</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Giá gốc</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Giá bán</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Số lượng</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Danh mục</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Trạng thái</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Thao tác</th>
+              </tr>
+            </thead>
+            <tbody className="bg-white divide-y divide-gray-200">
+              {products.map((p) => (
+                <tr key={p.id} className="hover:bg-gray-50">
+                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{p.id}</td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{p.name}</td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                    {p.original_price ? `${p.original_price.toLocaleString()}đ` : '-'}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm font-semibold text-orange-600">
+                    {p.price.toLocaleString()}đ
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{p.stock}</td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                    {categories.find((c) => c.id === p.category_id)?.name || p.category_id}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <div className="flex gap-1">
+                      {p.is_new && (
+                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
+                          Mới
+                        </span>
+                      )}
+                      {p.is_hot && (
+                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-orange-100 text-orange-800">
+                          Hot
+                        </span>
+                      )}
+                      {!p.is_new && !p.is_hot && (
+                        <span className="text-sm text-gray-500">-</span>
+                      )}
+                    </div>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => openForm(p)}
+                        className="inline-flex items-center px-3 py-1 border border-transparent text-sm leading-4 font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors"
+                      >
+                        Sửa
+                      </button>
+                      <button
+                        onClick={() => deleteProduct(p.id)}
+                        className="inline-flex items-center px-3 py-1 border border-transparent text-sm leading-4 font-medium rounded-md text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 transition-colors"
+                      >
+                        Xóa
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
     </div>
   );
 }

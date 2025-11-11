@@ -25,9 +25,12 @@ class ProductController extends Controller
             'name' => 'required|string|max:255',
             'description' => 'nullable|string',
             'price' => 'required|numeric',
+            'original_price' => 'nullable|numeric',
             'stock' => 'required|integer',
             'category_id' => 'required|exists:categories,id',
             'image' => 'nullable|image|mimes:jpg,png,jpeg,gif',
+            'is_new' => 'nullable|boolean',
+            'is_hot' => 'nullable|boolean',
         ]);
 
         if ($request->hasFile('image')) {
@@ -40,9 +43,12 @@ class ProductController extends Controller
             'name' => $request->name,
             'description' => $request->description,
             'price' => $request->price,
+            'original_price' => $request->original_price,
             'stock' => $request->stock,
             'category_id' => $request->category_id,
             'image' => $imagePath,
+            'is_new' => $request->is_new ?? false,
+            'is_hot' => $request->is_hot ?? false,
         ]);
 
         return response()->json($product, 201);
