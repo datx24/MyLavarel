@@ -95,11 +95,11 @@ export default function ProductDetailPage() {
                 <h1 className="text-4xl font-bold text-gray-900 mb-6 leading-tight">{product.name}</h1>
                 <div className="flex items-center gap-4 mb-6">
                   <span className="text-3xl font-bold text-orange-600">
-                    {product.price.toLocaleString()}đ
+                    {Number(product.price).toLocaleString()}đ
                   </span>
                   {product.original_price && (
                     <span className="text-xl text-gray-500 line-through">
-                      {product.original_price.toLocaleString()}đ
+                      {Number(product.original_price).toLocaleString()}đ
                     </span>
                   )}
                 </div>
@@ -108,9 +108,12 @@ export default function ProductDetailPage() {
                     Số lượng: {product.stock}
                   </span>
                 </div>
-                <div className="mb-6">
-                  <button className="w-full bg-orange-600 hover:bg-orange-700 text-white font-bold py-4 px-6 rounded-lg transition duration-300 shadow-lg">
+                <div className="mb-6 flex gap-4">
+                  <button className="flex-1 bg-orange-600 hover:bg-orange-700 text-white font-bold py-4 px-6 rounded-lg transition duration-300 shadow-lg">
                     Thêm vào giỏ hàng
+                  </button>
+                  <button className="flex-1 bg-green-600 hover:bg-green-700 text-white font-bold py-4 px-6 rounded-lg transition duration-300 shadow-lg">
+                    Mua ngay
                   </button>
                 </div>
               </div>
