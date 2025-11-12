@@ -9,6 +9,8 @@ const Sidebar = () => {
     { label: "Dashboard", href: "/admin/dashboard" },
     { label: "Categories", href: "/admin/categories" },
     { label: "Products", href: "/admin/products" },
+    { label: "Orders", href: "/admin/orders" },
+    { label: "Order Statistics", href: "/admin/orders/statistics" },
     { label: "Users", href: "/admin/users" },
   ];
 

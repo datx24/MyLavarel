@@ -5,6 +5,7 @@ use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\ProductController;
 use App\Http\Controllers\CategoryController;
 use App\Http\Controllers\GuestOrderController;
+use App\Http\Controllers\AdminOrderController;
 
 /*
 |--------------------------------------------------------------------------
@@ -25,4 +26,16 @@ Route::apiResource('products', ProductController::class);
 Route::apiResource('categories', CategoryController::class);
 
 Route::post('guest-orders', [GuestOrderController::class, 'storeGuest']);
+
+// Admin routes (no auth required for now)
+Route::prefix('admin')->group(function () {
+    Route::get('orders', [AdminOrderController::class, 'index']);
+    Route::get('orders/{id}', [AdminOrderController::class, 'show']);
+    Route::put('orders/{id}', [AdminOrderController::class, 'update']);
+    Route::put('orders/{id}/status', [AdminOrderController::class, 'updateStatus']);
+    Route::get('orders/statistics', [AdminOrderController::class, 'statistics']);
+});
+
+
+
 
