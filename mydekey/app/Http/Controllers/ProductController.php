@@ -186,5 +186,22 @@ class ProductController extends Controller
 
         return response()->json($result);
     }
+
+    /**
+     * Hiển thị chi tiết sản phẩm theo slug
+     * URL: GET /api/products/slug/{slug}
+     */
+    public function showBySlug($slug)
+    {
+        $product = Product::where('slug', $slug)->first();
+
+        if (!$product) {
+            return response()->json([
+                'message' => 'Sản phẩm không tồn tại'
+            ], 404);
+        }
+
+        return response()->json($product);
+    }
 }
 
