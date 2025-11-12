@@ -9,6 +9,7 @@ interface Category {
   id: number;
   name: string;
   description: string;
+  slug: string;
 }
 
 export default function CategoriesPage() {
@@ -21,7 +22,23 @@ export default function CategoriesPage() {
   const [form, setForm] = useState({
     name: "",
     description: "",
+    slug: ""
   });
+
+  // Hàm tự động tạo slug từ tên
+    const generateSlug = (text: string) => {
+    return text
+      .toLowerCase()
+      .replace(/đ/g, "d")        // thay đ bằng d
+      .replace(/Đ/g, "D")        // thay Đ bằng D (nếu có)
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .replace(/\s+/g, "-")
+      .replace(/[^\w\-]+/g, "")
+      .replace(/\-\-+/g, "-")
+      .replace(/^-+/, "")
+      .replace(/-+$/, "");
+  };
 
   const fetchCategories = async () => {
     setFetching(true);
@@ -42,27 +59,29 @@ export default function CategoriesPage() {
   const openForm = (cat?: Category) => {
     if (cat) {
       setEditingId(cat.id);
-      setForm({ name: cat.name, description: cat.description });
+      setForm({ name: cat.name, description: cat.description, slug: cat.slug });
     } else {
       setEditingId(null);
-      setForm({ name: "", description: "" });
+      setForm({ name: "", description: "", slug: "" });
     }
     setShowForm(true);
   };
 
   const closeForm = () => {
     setShowForm(false);
-    setForm({ name: "", description: "" });
+    setForm({ name: "", description: "", slug: "" });
   };
 
   const saveCategory = async () => {
     if (!form.name.trim()) return toast.error("Vui lòng nhập tên danh mục!");
     if (!form.description.trim()) return toast.error("Vui lòng nhập mô tả!");
+    if (!form.slug.trim()) return toast.error("Slug không được để trống!");
 
     setLoading(true);
     const data = new FormData();
     data.append("name", form.name.trim());
     data.append("description", form.description.trim());
+    data.append("slug", form.slug.trim());
     if (editingId) data.append("_method", "PUT");
 
     try {
@@ -122,7 +141,7 @@ export default function CategoriesPage() {
             </div>
           </div>
 
-          {/* Danh sách danh mục - Grid giống Products */}
+          {/* Danh sách danh mục */}
           <div className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
             {fetching ? (
               <div className="p-16 text-center">
@@ -148,9 +167,10 @@ export default function CategoriesPage() {
                       </div>
                       <h3 className="font-bold text-gray-900 text-lg line-clamp-1">{cat.name}</h3>
                       <p className="text-gray-600 text-sm mt-2 line-clamp-2">{cat.description}</p>
+                      <p className="text-gray-400 text-xs mt-1">{cat.slug}</p>
                     </div>
 
-                    {/* Nút thao tác - hiện khi hover */}
+                    {/* Nút thao tác */}
                     <div className="absolute top-3 right-3 flex flex-col gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
                       <button
                         onClick={() => openForm(cat)}
@@ -172,7 +192,7 @@ export default function CategoriesPage() {
           </div>
         </div>
 
-        {/* Modal Form - giống hệt Products */}
+        {/* Modal Form */}
         {showForm && (
           <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
             <div className="bg-white rounded-3xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
@@ -193,8 +213,24 @@ export default function CategoriesPage() {
                   <input
                     type="text"
                     value={form.name}
-                    onChange={(e) => setForm({ ...form, name: e.target.value })}
+                    onChange={(e) => {
+                      const name = e.target.value;
+                      setForm({ ...form, name, slug: generateSlug(name) });
+                    }}
                     placeholder="VD: Điện thoại, Laptop..."
+                    className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-4 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition-all text-black font-medium"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">
+                    Slug (có thể chỉnh thủ công)
+                  </label>
+                  <input
+                    type="text"
+                    value={form.slug}
+                    onChange={(e) => setForm({ ...form, slug: e.target.value })}
+                    placeholder="VD: dien-thoai, laptop"
                     className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-4 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition-all text-black font-medium"
                   />
                 </div>

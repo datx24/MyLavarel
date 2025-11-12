@@ -5,6 +5,7 @@ import api from "@/utils/api";
 import Image from "next/image";
 import Header from "@/components/user/Header";
 import Footer from "@/components/user/Footer";
+import HeroBanner from "@/components/user/HeroBanner";
 
 interface Product {
   id: number;
@@ -103,6 +104,7 @@ export default function ProductDetailPage() {
   return (
     <>
       <Header />
+      <HeroBanner />
       <div className="min-h-screen bg-gray-50 py-8 pt-24">
         <div className="max-w-6xl mx-auto px-4">
           <div className="bg-white rounded-lg shadow-lg overflow-hidden mb-8">
