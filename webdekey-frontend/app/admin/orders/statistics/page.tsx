@@ -194,33 +194,81 @@ export default function OrderStatisticsPage() {
           {/* Stats Grid */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-10">
             {[
-              { icon: Package, label: "Tổng đơn hàng", value: stats?.total_orders ?? 0, color: "indigo" },
-              { icon: DollarSign, label: "Tổng doanh thu", value: `${(stats?.total_revenue ?? 0).toLocaleString()}đ`, color: "emerald" },
-              { icon: Clock, label: "Đơn chờ xác nhận", value: stats?.pending_orders ?? 0, color: "amber" },
-              { icon: CheckCircle2, label: "Đơn hoàn thành", value: stats?.completed_orders ?? 0, color: "emerald" },
+              { 
+                icon: Package, 
+                label: "Tổng đơn hàng", 
+                value: stats?.total_orders ?? 0, 
+                bg: "from-violet-500 to-purple-600",
+                ring: "ring-purple-500/20",
+                iconColor: "text-purple-600",
+                bgIcon: "bg-purple-100"
+              },
+              { 
+                icon: DollarSign, 
+                label: "Tổng doanh thu", 
+                value: `${(stats?.total_revenue ?? 0).toLocaleString()}đ`, 
+                bg: "from-emerald-500 to-teal-600",
+                ring: "ring-emerald-500/20",
+                iconColor: "text-emerald-600",
+                bgIcon: "bg-emerald-100"
+              },
+              { 
+                icon: Clock, 
+                label: "Đơn chờ xác nhận", 
+                value: stats?.pending_orders ?? 0, 
+                bg: "from-amber-500 to-orange-600",
+                ring: "ring-amber-500/20",
+                iconColor: "text-amber-600",
+                bgIcon: "bg-amber-100"
+              },
+              { 
+                icon: CheckCircle2, 
+                label: "Đơn hoàn thành", 
+                value: stats?.completed_orders ?? 0, 
+                bg: "from-cyan-500 to-blue-600",
+                ring: "ring-cyan-500/20",
+                iconColor: "text-cyan-600",
+                bgIcon: "bg-cyan-100"
+              },
             ].map((item, i) => (
               <div
                 key={i}
-                className="group relative overflow-hidden rounded-2xl bg-white shadow-lg hover:shadow-2xl transition-all duration-300 transform hover:-translate-y-2"
+                className="group relative overflow-hidden rounded-3xl bg-white shadow-xl hover:shadow-2xl transition-all duration-500 transform hover:-translate-y-3"
               >
-                <div className={`absolute inset-0 bg-gradient-to-br from-${item.color}-500 to-${item.color === 'indigo' ? 'purple' : item.color === 'emerald' ? 'teal' : 'orange'}-600 opacity-0 group-hover:opacity-10 transition-opacity`} />
-                <div className="p-6 relative z-10">
-                  <div className="flex items-center justify-between mb-4">
-                    <div className={`p-3 bg-${item.color}-100 rounded-xl group-hover:scale-110 transition-transform`}>
-                      <item.icon className={`w-8 h-8 text-${item.color}-600`} />
+                {/* Gradient Background + Ring Effect */}
+                <div className={`absolute inset-0 bg-gradient-to-br ${item.bg} opacity-0 group-hover:opacity-100 transition-opacity duration-500`} />
+                <div className={`absolute inset-0 ${item.ring} ring-4 ring-inset opacity-0 group-hover:opacity-100 transition-opacity duration-500`} />
+                
+                {/* Glassmorphism Overlay */}
+                <div className="absolute inset-0 bg-white/70 backdrop-blur-xl group-hover:bg-white/50 transition-all duration-500" />
+                
+                <div className="relative z-10 p-7">
+                  <div className="flex items-center justify-between mb-5">
+                    {/* Icon với nền đậm + shadow */}
+                    <div className={`p-4 ${item.bgIcon} rounded-2xl shadow-2xl ring-8 ring-white/50 group-hover:scale-110 group-hover:rotate-12 transition-all duration-500`}>
+                      <item.icon className={`w-10 h-10 ${item.iconColor} drop-shadow-lg`} />
                     </div>
-                    {i === 0 && <TrendingUp className="w-5 h-5 text-green-500" />}
-                    {i === 1 && <span className="text-xs font-semibold text-green-600 bg-green-100 px-2 py-1 rounded-full">+12.5%</span>}
+                    
+                    {/* Badge tăng trưởng hoặc trend */}
+                    {i === 0 && <TrendingUp className="w-7 h-7 text-green-500 drop-shadow-md animate-pulse" />}
+                    {i === 1 && (
+                      <span className="px-4 py-2 bg-gradient-to-r from-green-500 to-emerald-600 text-white text-xs font-bold rounded-full shadow-lg">
+                        +12.5%
+                      </span>
+                    )}
                   </div>
-                  <p className="text-slate-600 text-sm font-medium">{item.label}</p>
-                  <p className="text-3xl font-bold text-slate-800 mt-2">
+
+                  <p className="text-slate-600 text-sm font-medium tracking-wide">{item.label}</p>
+                  <p className="text-3xl font-extrabold text-slate-800 mt-3 bg-gradient-to-r from-slate-700 to-slate-900 bg-clip-text text-transparent">
                     {typeof item.value === 'number' ? item.value.toLocaleString() : item.value}
                   </p>
                 </div>
+
+                {/* Bottom Glow Effect */}
+                <div className={`absolute bottom-0 left-0 right-0 h-2 bg-gradient-to-r ${item.bg} blur-xl opacity-0 group-hover:opacity-70 transition-opacity duration-500`} />
               </div>
             ))}
           </div>
-
           {/* Recent Orders */}
           <div className="bg-white/80 backdrop-blur-xl rounded-2xl shadow-xl border border-white/20 overflow-hidden animate-fade-in-up">
             <div className="bg-gradient-to-r from-indigo-600 to-purple-600 p-6">
