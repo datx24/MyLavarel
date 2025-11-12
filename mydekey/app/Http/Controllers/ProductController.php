@@ -157,5 +157,34 @@ class ProductController extends Controller
             ]
         ]);
     }
+
+    public function search(Request $request)
+    {
+        $query = $request->get('q', '');
+
+        if ($query) {
+            $products = Product::where('name', 'LIKE', "%{$query}%")
+                ->orderBy('created_at', 'desc')
+                ->limit(5)
+                ->get();
+        } else {
+            // Nếu query rỗng, lấy 5 sản phẩm mới nhất
+            $products = Product::orderBy('created_at', 'desc')
+                ->limit(5)
+                ->get();
+        }
+
+        $result = $products->map(function($p) {
+            return [
+                'id' => $p->id,
+                'name' => $p->name,
+                'slug' => $p->slug,
+                'image' => $p->image ? asset('storage/' . $p->image) : null,
+                'price' => $p->price,
+            ];
+        });
+
+        return response()->json($result);
+    }
 }
 
