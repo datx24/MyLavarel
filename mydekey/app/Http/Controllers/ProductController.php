@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
 use App\Models\Product;
+use App\Models\Category;
 
 class ProductController extends Controller
 {
@@ -92,6 +93,69 @@ class ProductController extends Controller
         if (!$product) return response()->json(['message' => 'Not found'], 404);
         $product->delete();
         return response()->json(['message' => 'Deleted'], 204);
+    }
+
+    /**
+     * LẤY DANH SÁCH SẢN PHẨM THEO SLUG DANH MỤC
+     * URL: GET /api/products/category/dien-thoai
+     */
+    public function showSlug($slug, Request $request)
+    {
+        // Tìm danh mục theo slug
+        $category = Category::where('slug', $slug)->first();
+
+        if (!$category) {
+            return response()->json([
+                'message' => 'Danh mục không tồn tại'
+            ], 404);
+        }
+
+        // Query sản phẩm
+        $perPage = $request->get('per_page', 20);
+        $search = $request->get('search', '');
+        $sort = $request->get('sort', 'latest');
+
+        $query = Product::where('category_id', $category->id);
+
+        // Tìm kiếm
+        if ($search) {
+            $query->where('name', 'LIKE', "%{$search}%");
+        }
+
+        // Sắp xếp
+        switch ($sort) {
+            case 'price_asc':
+                $query->orderBy('price', 'asc');
+                break;
+            case 'price_desc':
+                $query->orderBy('price', 'desc');
+                break;
+            case 'latest':
+            default:
+                $query->orderBy('created_at', 'desc');
+                break;
+        }
+
+        $products = $query->paginate($perPage);
+
+        return response()->json([
+            'category' => [
+                'id' => $category->id,
+                'name' => $category->name,
+                'slug' => $category->slug,
+            ],
+            'products' => $products->items(),
+            'pagination' => [
+                'current_page' => $products->currentPage(),
+                'last_page' => $products->lastPage(),
+                'per_page' => $products->perPage(),
+                'total' => $products->total(),
+            ],
+            'filters' => [
+                'search' => $search,
+                'sort' => $sort,
+            ]
+        ]);
     }
 }
 

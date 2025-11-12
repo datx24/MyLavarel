@@ -36,6 +36,8 @@ Route::prefix('admin')->group(function () {
     Route::get('orders/statistics', [AdminOrderController::class, 'statistics']);
 });
 
+Route::get('/products/category/{slug}', [ProductController::class, 'showSlug']);
+
 
 
 

@@ -7,7 +7,7 @@ interface Product {
   name: string;
   price: string | number;
   original_price?: string | number | null;
-  image: string; 
+  image?: string; 
   is_new?: number | boolean;
   is_hot?: number | boolean;
 }

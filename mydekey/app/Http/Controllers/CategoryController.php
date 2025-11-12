@@ -39,6 +39,7 @@ class CategoryController extends Controller
         $validated = $request->validate([
             'name' => 'required|string|max:255|unique:categories,name',
             'description' => 'nullable|string',
+            'slug' => 'nullable|string',
         ]);
         //Tạo mới danh mục
         $category = Category::create($validated );
@@ -81,6 +82,8 @@ class CategoryController extends Controller
 
         $validated = $request->validate([
             'name' => 'required|string|max:255|unique:categories,name,'.$id,
+            'description' => 'nullable|string',
+            'slug' => 'nullable|string',
         ]);
 
         $category ->update($validated);
