@@ -5,6 +5,7 @@ import Link from "next/link";
 interface Product {
   id: number;
   name: string;
+  slug: string;
   price: string | number;
   original_price?: string | number | null;
   image?: string; 
@@ -20,7 +21,7 @@ export default function ProductCard({ product }: ProductCardProps) {
   const imageUrl = `http://127.0.0.1:8000/storage/${product.image}`;
 
   return (
-    <Link href={`/products/${product.id}`}>
+    <Link href={`/products/${product.slug}`}>
       <div className="bg-white rounded-lg overflow-hidden shadow-sm hover:shadow-2xl transition-all duration-300 group cursor-pointer">
         <div className="relative aspect-square bg-gray-50">
           <Image

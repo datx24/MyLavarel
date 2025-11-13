@@ -16,6 +16,7 @@ interface Category {
 interface Product {
   id: number;
   name: string;
+  slug: string;
   price: number;
   original_price?: number | null;
   image?: string;
