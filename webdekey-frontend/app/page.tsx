@@ -7,11 +7,11 @@ import ProductGridByCategory from "@/components/user/ProductGridByCategory";
 
 export default function Home() {
   return (
-    <div className="min-h-screen bg-[#f1f1f1]">
+    <div className="min-h-screen">
       <Header />
       <HeroBanner />
     
-      <div className="pt-16">
+      <div className="pt-16  bg-[#f1f1f1]">
         <div className="max-w-screen-2xl mx-auto px-4 py-12">
           <div className="flex gap-8">
             <div className="w-full">
