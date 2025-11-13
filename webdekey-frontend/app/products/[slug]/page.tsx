@@ -3,14 +3,14 @@
 import { useRouter, useParams } from "next/navigation";
 import { useEffect, useState, useRef } from "react";
 import Image from "next/image";
-import { 
-  ChevronLeft, 
-  ChevronRight, 
-  ShoppingCart, 
-  CreditCard, 
-  Minus, 
+import {
+  ChevronLeft,
+  ChevronRight,
+  ShoppingCart,
+  CreditCard,
+  Minus,
   Plus,
-  Heart 
+  Heart
 } from "lucide-react";
 import api from "@/utils/api";
 import Header from "@/components/user/Header";
@@ -208,10 +208,9 @@ export default function ProductDetailPage() {
               onClick={() => toggleWishlist(product.id)}
               className="absolute top-4 right-4 bg-white/90 hover:bg-white rounded-full p-2 shadow-lg transition-all duration-200"
             >
-              <Heart 
-                className={`w-5 h-5 transition-colors duration-200 ${
-                  wishlist.has(product.id) ? 'text-red-500 fill-red-500' : 'text-gray-600'
-                }`} 
+              <Heart
+                className={`w-5 h-5 transition-colors duration-200 ${wishlist.has(product.id) ? 'text-red-500 fill-red-500' : 'text-gray-600'
+                  }`}
               />
             </button>
           </div>
@@ -220,7 +219,7 @@ export default function ProductDetailPage() {
           <div className="space-y-6 flex flex-col justify-between">
             <div>
               <h1 className="text-3xl lg:text-4xl font-bold text-gray-900 leading-tight">{product.name}</h1>
-              
+
               <div className="flex items-center gap-4 mt-4">
                 <div className="flex items-baseline gap-3">
                   <span className="text-4xl font-bold text-orange-600">
@@ -305,9 +304,8 @@ export default function ProductDetailPage() {
                 >
                   {showFullDesc ? "Thu gọn" : "Xem thêm"}
                   <ChevronRight
-                    className={`w-4 h-4 transition-transform ${
-                      showFullDesc ? "rotate-90" : ""
-                    }`}
+                    className={`w-4 h-4 transition-transform ${showFullDesc ? "rotate-90" : ""
+                      }`}
                   />
                 </button>
               )}
@@ -346,7 +344,16 @@ export default function ProductDetailPage() {
                 }}
               >
                 {suggestProducts.map((p) => (
-                  <div key={p.id} className="min-w-[220px] flex-shrink-0 bg-white rounded-2xl shadow-lg overflow-hidden hover:shadow-xl transition-all duration-300 hover:-translate-y-1">
+                  <div
+                    key={p.id}
+                    className="min-w-[220px] flex-shrink-0 bg-white rounded-2xl shadow-lg overflow-hidden hover:shadow-xl transition-all duration-300 hover:-translate-y-1 cursor-pointer"
+                    onClick={() => {
+                      // Khi click vào card, load lại ProductDetailPage với slug mới
+                      router.push(`/products/${p.slug}`);
+                      // Scroll lên đầu trang
+                      window.scrollTo({ top: 0, behavior: "smooth" });
+                    }}
+                  >
                     <div className="relative h-48 bg-gradient-to-br from-gray-50 to-gray-100">
                       <Image
                         src={getImageUrl(p.image)}
@@ -356,13 +363,15 @@ export default function ProductDetailPage() {
                         unoptimized
                       />
                       <button
-                        onClick={() => toggleWishlist(p.id)}
+                        onClick={(e) => {
+                          e.stopPropagation(); // Ngăn click vào button wishlist ảnh hưởng tới card click
+                          toggleWishlist(p.id);
+                        }}
                         className="absolute top-3 right-3 bg-white/90 hover:bg-white rounded-full p-2 shadow-md transition-all duration-200 opacity-0 group-hover:opacity-100"
                       >
-                        <Heart 
-                          className={`w-4 h-4 transition-colors duration-200 ${
-                            wishlist.has(p.id) ? 'text-red-500 fill-red-500' : 'text-gray-600'
-                          }`} 
+                        <Heart
+                          className={`w-4 h-4 transition-colors duration-200 ${wishlist.has(p.id) ? 'text-red-500 fill-red-500' : 'text-gray-600'
+                            }`}
                         />
                       </button>
                     </div>
@@ -381,6 +390,7 @@ export default function ProductDetailPage() {
                     </div>
                   </div>
                 ))}
+
               </div>
 
               {/* Navigation Buttons */}
