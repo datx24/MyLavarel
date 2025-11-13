@@ -39,6 +39,8 @@ Route::prefix('admin')->group(function () {
 });
 
 Route::get('/products/category/{slug}', [ProductController::class, 'showSlug']);
+Route::get('products/category/{slug}/price-range', [ProductController::class, 'getPriceRange']);
+
 
 
 

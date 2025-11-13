@@ -98,6 +98,13 @@ class ProductController extends Controller
     /**
      * LẤY DANH SÁCH SẢN PHẨM THEO SLUG DANH MỤC
      * URL: GET /api/products/category/dien-thoai
+     * Query Params:
+     * - per_page: Số sản phẩm trên mỗi trang (mặc định 20)
+     * - search: Từ khóa tìm kiếm theo tên sản phẩm   
+     * - sort: Phương thức sắp xếp (latest, price_asc, price_desc)
+     * - min_price: Giá tối thiểu
+     * - max_price: Giá tối đa
+     * Trả về: Danh sách sản phẩm kèm phân trang và thông tin bộ lọc
      */
     public function showSlug($slug, Request $request)
     {
@@ -110,16 +117,25 @@ class ProductController extends Controller
             ], 404);
         }
 
-        // Query sản phẩm
         $perPage = $request->get('per_page', 20);
         $search = $request->get('search', '');
         $sort = $request->get('sort', 'latest');
+        $minPrice = $request->get('min_price');
+        $maxPrice = $request->get('max_price');
 
         $query = Product::where('category_id', $category->id);
 
-        // Tìm kiếm
+        // Lọc theo tên sản phẩm
         if ($search) {
             $query->where('name', 'LIKE', "%{$search}%");
+        }
+
+        // Lọc theo giá
+        if ($minPrice !== null) {
+            $query->where('price', '>=', (float)$minPrice);
+        }
+        if ($maxPrice !== null) {
+            $query->where('price', '<=', (float)$maxPrice);
         }
 
         // Sắp xếp
@@ -154,10 +170,16 @@ class ProductController extends Controller
             'filters' => [
                 'search' => $search,
                 'sort' => $sort,
+                'min_price' => $minPrice,
+                'max_price' => $maxPrice,
             ]
         ]);
     }
 
+    /**
+     * Tìm kiếm sản phẩm
+     * URL: GET /api/products/search?q=...
+     */
     public function search(Request $request)
     {
         $query = $request->get('q', '');
@@ -202,6 +224,23 @@ class ProductController extends Controller
         }
 
         return response()->json($product);
+    }
+
+    public function getPriceRange($slug)
+    {
+        $category = Category::where('slug', $slug)->first();
+
+        if (!$category) {
+            return response()->json(['message' => 'Category not found'], 404);
+        }
+
+        $minPrice = Product::where('category_id', $category->id)->min('price');
+        $maxPrice = Product::where('category_id', $category->id)->max('price');
+
+        return response()->json([
+            'min_price' => $minPrice ?? 0,
+            'max_price' => $maxPrice ?? 0,
+        ]);
     }
 }
 
