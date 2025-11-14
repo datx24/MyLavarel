@@ -174,7 +174,26 @@ export default function ProductDetailPage() {
     return txt.value;
   };
 
-  // Clean and truncate description for preview
+  // Hàm xử lý URL cho ảnh trong HTML description
+  const processDescriptionHtml = (html: string) => {
+    if (!html) return html;
+    
+    // Decode entities trước
+    let processed = decodeHtml(html);
+    
+    // Thay thế src của <img> tags: nếu không phải http, prefix với base URL
+    processed = processed.replace(
+      /<img[^>]+src=["']([^"']+)["'][^>]*>/gi,
+      (match, src) => {
+        const imgUrl = getImageUrl(src);
+        return match.replace(src, imgUrl);
+      }
+    );
+    
+    return processed;
+  };
+
+  // Clean text cho preview (chỉ text)
   const cleanDescription = product.description
     ? decodeHtml(product.description.replace(/<[^>]*>/g, "").trim())
     : "";
@@ -182,6 +201,11 @@ export default function ProductDetailPage() {
     showFullDesc || cleanDescription.length <= 120
       ? cleanDescription
       : cleanDescription.slice(0, 120) + "...";
+
+  // Full HTML cho mô tả đầy đủ
+  const fullDescriptionHtml = product.description
+    ? processDescriptionHtml(product.description)
+    : "";
 
   return (
     <div className="bg-[#f1f1f1] min-h-screen flex flex-col">
@@ -296,7 +320,16 @@ export default function ProductDetailPage() {
               Mô tả sản phẩm
             </h2>
             <div className="text-gray-700 leading-relaxed text-sm sm:text-base space-y-3">
-              <p className="whitespace-pre-wrap">{previewDesc}</p>
+              {showFullDesc ? (
+                // Render full HTML khi mở rộng
+                <div 
+                  className="prose prose-sm max-w-none"
+                  dangerouslySetInnerHTML={{ __html: fullDescriptionHtml }}
+                />
+              ) : (
+                // Preview text thuần
+                <p className="whitespace-pre-wrap">{previewDesc}</p>
+              )}
               {cleanDescription.length > 120 && (
                 <button
                   className="text-blue-600 font-medium hover:underline flex items-center gap-1 transition-colors duration-200 text-sm"
@@ -304,8 +337,7 @@ export default function ProductDetailPage() {
                 >
                   {showFullDesc ? "Thu gọn" : "Xem thêm"}
                   <ChevronRight
-                    className={`w-4 h-4 transition-transform ${showFullDesc ? "rotate-90" : ""
-                      }`}
+                    className={`w-4 h-4 transition-transform ${showFullDesc ? "rotate-90" : ""}`}
                   />
                 </button>
               )}
