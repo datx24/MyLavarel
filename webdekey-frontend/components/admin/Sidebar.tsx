@@ -64,7 +64,7 @@ export default function Sidebar() {
             <Home className="w-7 h-7 text-white" />
           </div>
           <h2 className="text-2xl font-bold bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text text-transparent">
-            WebDekey Admin
+            Dekey Admin
           </h2>
         </div>
       </div>
