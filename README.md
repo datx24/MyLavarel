@@ -1,37 +1,144 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Dekey — Web bán đồ điện tử
 
-## Getting Started
+> **Laravel (API) + Next.js (Frontend)**
 
-First, run the development server:
+---
+
+## 🚀 Tổng quan
+
+**Dekey** là một ứng dụng thương mại điện tử bán thiết bị điện tử (phụ kiện, thiết bị thông minh, phụ kiện ô tô, v.v.).
+
+* **Backend:** PHP Laravel (REST API)
+* **Frontend:** Next.js (React) — SSR/SSG, SEO tốt
+* **DB:** MySQL 
+* **Mục tiêu:** MVP có giỏ hàng, thanh toán (gateway), quản trị sản phẩm, user authentication, và tích hợp CMS cơ bản.
+
+---
+
+
+## ✨ Tính năng chính
+
+* Quản lý sản phẩm (CRUD)
+* Danh mục, filter & tìm kiếm
+* Giỏ hàng & checkout
+* Xử lý đơn hàng (Admin)
+* Hình ảnh sản phẩm (upload / CDN)
+* Trang quản trị đơn giản (Admin UI)
+* Tối ưu SEO & performance cho Next.js
+
+---
+
+## 🛠️ Yêu cầu môi trường
+
+* PHP >= 8.1
+* Composer
+* Node.js >= 18
+* pnpm / npm / yarn
+* MySQL hoặc MariaDB
+* Redis (tùy chọn, cho cache / queue)
+* Docker (tùy chọn — gợi ý file `docker-compose.yml` có sẵn)
+
+---
+
+## ⚙️ Cài đặt nhanh (Local)
+
+### 1) Backend (Laravel)
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+cd backend
+cp .env.example .env
+# chỉnh DB credentials trong .env
+composer install
+php artisan key:generate
+php artisan migrate --seed
+php artisan storage:link
+php artisan serve --http://127.0.0.1:8000
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+> API mặc định chạy tại: `http://127.0.0.1:8000`
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+### 2) Frontend (Next.js)
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+```bash
+cd frontend
+cp .env.local.example .env.local
+# cấu hình NEXT_PUBLIC_API_URL = http://localhost:8000
+npm install
+npm run dev
+```
 
-## Learn More
+> Frontend mặc định chạy tại: `http://localhost:3000`
 
-To learn more about Next.js, take a look at the following resources:
+---
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## 🔐 Biến môi trường 
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+**backend/.env**
 
-## Deploy on Vercel
+```
+APP_NAME=Dekey
+APP_ENV=local
+DB_CONNECTION=mysql
+DB_HOST=127.0.0.1
+DB_PORT=3306
+DB_DATABASE=dekey_db
+DB_USERNAME=root
+DB_PASSWORD=
+JWT_SECRET=your_jwt_secret
+FILESYSTEM_DRIVER=public
+```
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+**frontend/.env.local**
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+```
+NEXT_PUBLIC_API_URL=http://localhost:8000
+NEXT_PUBLIC_CLOUDINARY_URL=...
+```
 
+---
+
+## 📦 API chính (ví dụ)
+
+* `POST /api/auth/login` — Đăng nhập
+* `POST /api/auth/register` — Đăng ký
+* `GET /api/products` — Lấy danh sách sản phẩm
+* `GET /api/products/{slug}` — Chi tiết sản phẩm
+* `POST /api/cart` — Thêm vào giỏ
+* `POST /api/orders` — Tạo đơn hàng
+* `GET /api/admin/orders` — (Admin) Danh sách đơn
+
+---
+
+## 🧩 Thiết kế & Kiến trúc
+
+* **Backend**: Laravel API thuần, Service → Repository pattern (tách business logic), Events & Jobs cho xử lý async.
+* **Frontend**: Next.js, React Hooks, SWR/React Query cho data-fetching, component-driven design.
+* **Auth**: Laravel Sanctum hoặc JWT cho SPA/Next.js.
+* **File storage**: Sử dụng `storage/app/public` khi local, hoặc Cloud storage (S3/Cloudinary) khi production.
+
+---
+
+## 🚢 Triển khai (gợi ý)
+
+* **Dockerize** cả backend & frontend. Sử dụng `nginx` làm reverse proxy.
+* **CI/CD:** GitHub Actions/GitLab CI — pipeline: lint → test → build → deploy.
+* **Hosting:** Backend: VPS / DigitalOcean / Render; Frontend: Vercel / Netlify.
+* **DB backup & migrations:** tự động hóa migration & backup trước deploy.
+
+---
+
+## 🧭 Roadmap (Đang làm)
+
+1. Tích hợp cổng thanh toán (VNPay, Stripe)
+2. Multi-warehouse & logistics integration
+3. Notification (Email, SMS, Push)
+4. Realtime order status với WebSocket
+5. Analytics & dashboard bán hàng
+
+---
+
+## 📸 Giao diện
+
+> Thêm ảnh giao diện: `docs/screenshots/home.png`, `docs/screenshots/product.png`, `docs/screenshots/admin.png`.
+
+---
