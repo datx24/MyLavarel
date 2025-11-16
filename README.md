@@ -1,6 +1,9 @@
 # Dekey — Web bán đồ điện tử
 
 > **Laravel (API) + Next.js (Frontend)**
+> 🎥 Demo Video
+
+Xem demo dự án tại đây: https://youtu.be/ghZPE9rzAMU
 
 ---
 
