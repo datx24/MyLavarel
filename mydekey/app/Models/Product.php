@@ -4,7 +4,8 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Support\Str; // ✅ phải ở đây
+use Illuminate\Support\Str; 
+use App\Models\ProductAttribute;
 
 class Product extends Model
 {
@@ -48,5 +49,9 @@ class Product extends Model
                 $product->slug = $slug;
             }
         });
+    }
+    public function attributes()
+    {
+        return $this->hasMany(ProductAttribute::class);
     }
 }

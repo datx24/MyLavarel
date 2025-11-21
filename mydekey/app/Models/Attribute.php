@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use App\Models\ProductAttribute;
 
 class Attribute extends Model
 {
@@ -19,5 +20,10 @@ class Attribute extends Model
     public function category()
     {
         return $this->belongsTo(Category::class);
+    }
+
+    public function products()
+    {
+        return $this->hasMany(ProductAttribute::class);
     }
 }
