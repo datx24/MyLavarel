@@ -6,6 +6,7 @@ use App\Http\Controllers\ProductController;
 use App\Http\Controllers\CategoryController;
 use App\Http\Controllers\GuestOrderController;
 use App\Http\Controllers\AdminOrderController;
+use App\Http\Controllers\Admin\AttributeController;
 
 /*
 |--------------------------------------------------------------------------
@@ -40,6 +41,11 @@ Route::prefix('admin')->group(function () {
 
 Route::get('/products/category/{slug}', [ProductController::class, 'showSlug']);
 Route::get('products/category/{slug}/price-range', [ProductController::class, 'getPriceRange']);
+
+// Admin routes (no auth required for now)
+Route::prefix('admin')->group(function () {
+    Route::apiResource('attributes', AttributeController::class);
+});
 
 
 
