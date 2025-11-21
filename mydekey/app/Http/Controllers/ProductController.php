@@ -5,43 +5,82 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use App\Models\Product;
 use App\Models\Category;
+use App\Models\ProductAttribute;
 
 class ProductController extends Controller
 {
-    public function index() {
-        return response()->json(Product::all());
+    public function index()
+    {
+        $products = Product::with(['category', 'attributes'])->get();
+
+        return response()->json([
+            'message' => 'Products retrieved successfully',
+            'data'    => $products
+        ]);
     }
 
-    public function show($id) {
-        $product = Product::find($id);
+    public function show($id)
+    {
+        $product = Product::with(['category', 'attributes'])->find($id);
+
         if (!$product) {
-            return response()->json(['message'=> 'Not Found'], 404);
+            return response()->json([
+                'message' => 'Product not found'
+            ], 404);
         }
-        return response()->json($product);
+
+        // Convert attributes về format bạn muốn
+        $formattedAttributes = $product->attributes->map(function ($attr) {
+            return [
+                'attribute_id'   => $attr->id,
+                'attribute_name' => $attr->name,
+                'value'          => $attr->pivot->value,
+            ];
+        });
+
+        return response()->json([
+            'message' => 'Product retrieved successfully',
+            'data' => [
+                'id'            => $product->id,
+                'name'          => $product->name,
+                'description'   => $product->description,
+                'price'         => $product->price,
+                'original_price'=> $product->original_price,
+                'stock'         => $product->stock,
+                'is_new'        => $product->is_new,
+                'is_hot'        => $product->is_hot,
+                'image'         => $product->image,
+                'category'      => [
+                    'id'   => $product->category->id,
+                    'name' => $product->category->name,
+                ],
+                'attributes' => $formattedAttributes,
+            ]
+        ]);
     }
 
     public function store(Request $request)
     {
-        // Chuyển các giá trị boolean và số từ FormData về đúng kiểu
         $request->merge([
-            'is_new' => $request->input('is_new') === "1",
-            'is_hot' => $request->input('is_hot') === "1",
-            'price' => (float) $request->input('price'),
-            'original_price' => $request->input('original_price') ? (float) $request->input('original_price') : null,
-            'stock' => (int) $request->input('stock'),
-            'category_id' => (int) $request->input('category_id'),
+            'is_new' => $request->input('is_new') == "1",
+            'is_hot' => $request->input('is_hot') == "1",
+            'price' => (float) $request->price,
+            'original_price' => $request->filled('original_price') ? (float) $request->original_price : null,
+            'stock' => (int) $request->stock,
+            'category_id' => (int) $request->category_id,
         ]);
 
         $validated = $request->validate([
             'name' => 'required|string|max:255',
             'description' => 'nullable|string',
-            'price' => 'required|numeric',
-            'original_price' => 'nullable|numeric',
-            'stock' => 'required|integer',
+            'price' => 'required|numeric|min:0',
+            'original_price' => 'nullable|numeric|min:0',
+            'stock' => 'required|integer|min:0',
             'category_id' => 'required|exists:categories,id',
-            'image' => 'nullable|image|mimes:jpg,png,jpeg,gif,webp|max:2048',
-            'is_new' => 'boolean',
-            'is_hot' => 'boolean',
+            'image' => 'nullable|image|max:2048',
+            'attributes' => 'nullable|array',
+            'attributes.*.attribute_id' => 'required|exists:attributes,id',
+            'attributes.*.value' => 'nullable|string|max:255',
         ]);
 
         if ($request->hasFile('image')) {
@@ -50,42 +89,77 @@ class ProductController extends Controller
 
         $product = Product::create($validated);
 
-        return response()->json($product, 201);
+        // Dùng sync để thêm pivot
+        if (!empty($validated['attributes'])) {
+            $syncData = [];
+            foreach ($validated['attributes'] as $attr) {
+                $syncData[$attr['attribute_id']] = ['value' => $attr['value']];
+            }
+            $product->attributes()->sync($syncData);
+        }
+
+        $product->load(['category', 'attributes']);
+
+        return response()->json([
+            'message' => 'Product created successfully',
+            'data' => $product
+        ], 201);
     }
 
     public function update(Request $request, $id)
     {
         $product = Product::find($id);
-        if (!$product) return response()->json(['message' => 'Not found'], 404);
+
+        if (!$product) {
+            return response()->json(['message' => 'Product not found'], 404);
+        }
 
         $request->merge([
-            'is_new' => $request->input('is_new') === "1",
-            'is_hot' => $request->input('is_hot') === "1",
-            'price' => (float) $request->input('price'),
-            'original_price' => $request->input('original_price') ? (float) $request->input('original_price') : null,
-            'stock' => (int) $request->input('stock'),
-            'category_id' => (int) $request->input('category_id'),
+            'is_new' => $request->input('is_new') == "1",
+            'is_hot' => $request->input('is_hot') == "1",
+            'price' => (float) $request->price,
+            'original_price' => $request->filled('original_price') ? (float) $request->original_price : null,
+            'stock' => (int) $request->stock,
+            'category_id' => (int) $request->category_id,
         ]);
 
         $validated = $request->validate([
             'name' => 'required|string|max:255',
             'description' => 'nullable|string',
-            'price' => 'required|numeric',
-            'original_price' => 'nullable|numeric',
-            'stock' => 'required|integer',
+            'price' => 'required|numeric|min:0',
+            'original_price' => 'nullable|numeric|min:0',
+            'stock' => 'required|integer|min:0',
             'category_id' => 'required|exists:categories,id',
-            'image' => 'nullable|image|mimes:jpg,png,jpeg,gif,webp|max:2048',
-            'is_new' => 'boolean',
-            'is_hot' => 'boolean',
+            'image' => 'nullable|image|max:2048',
+            'attributes' => 'nullable|array',
+            'attributes.*.attribute_id' => 'required|exists:attributes,id',
+            'attributes.*.value' => 'nullable|string|max:255',
         ]);
 
         if ($request->hasFile('image')) {
+            if ($product->image) {
+                Storage::disk('public')->delete($product->image);
+            }
             $validated['image'] = $request->file('image')->store('products', 'public');
         }
 
         $product->update($validated);
 
-        return response()->json($product);
+        // ⭐ Cập nhật attributes bằng sync
+        if ($request->has('attributes') && is_array($request->attributes)) {
+            $syncData = [];
+            foreach ($request->attributes as $attr) {
+                $syncData[$attr['attribute_id']] = ['value' => $attr['value']];
+            }
+            $product->attributes()->sync($syncData);
+        }
+
+        $product->load(['category', 'attributes']);
+
+        return response()->json([
+            'message' => 'Product updated successfully',
+            'data'    => $product
+        ]);
     }
 
     public function destroy($id) {

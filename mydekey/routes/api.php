@@ -7,6 +7,7 @@ use App\Http\Controllers\CategoryController;
 use App\Http\Controllers\GuestOrderController;
 use App\Http\Controllers\AdminOrderController;
 use App\Http\Controllers\Admin\AttributeController;
+use App\Http\Controllers\Admin\ProductAttributeController;
 
 /*
 |--------------------------------------------------------------------------
@@ -45,6 +46,16 @@ Route::get('products/category/{slug}/price-range', [ProductController::class, 'g
 // Admin routes (no auth required for now)
 Route::prefix('admin')->group(function () {
     Route::apiResource('attributes', AttributeController::class);
+    Route::get('/attributes-by-category/{category_id}', [AttributeController::class, 'getByCategory']);
+});
+
+// routes/api.php hoặc routes/web.php trong group admin
+Route::prefix('admin/products/{product}/attributes')->group(function () {
+    Route::get('/', [ProductAttributeController::class, 'index']);
+    Route::post('/', [ProductAttributeController::class, 'store']);
+    Route::delete('/{attribute}', [ProductAttributeController::class, 'destroy']);
+    Route::put('/{attribute}', [ProductAttributeController::class, 'updateValue']);
+    Route::post('/reset', [ProductAttributeController::class, 'reset']);
 });
 
 

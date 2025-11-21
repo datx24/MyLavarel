@@ -8,8 +8,7 @@ import Image from "@tiptap/extension-image";
 import {
   Package, Plus, Edit3, Trash2, Image as ImageIcon,
   Sparkles, Flame, X, Save, Loader2, Tag, DollarSign, Box,
-  Search, Filter, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Percent, Settings,
-  Trash
+  Search, Filter, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Percent, Settings, Trash
 } from "lucide-react";
 import toast, { Toaster } from "react-hot-toast";
 
@@ -20,11 +19,19 @@ interface Attribute {
   type: string;
 }
 
+interface AttributePivot {
+  product_id: number;
+  attribute_id: number;
+  value: string;
+}
+
 interface AttributeValue {
   id?: number;
   attribute_id: number;
+  name?: string;
   value: string;
   attribute?: Attribute;
+  pivot?: AttributePivot; 
 }
 
 interface Category {
@@ -48,12 +55,13 @@ interface Product {
   attributes?: AttributeValue[] | null;
 }
 
-const ITEMS_PER_PAGE = 4;
+const ITEMS_PER_PAGE = 4; 
 
 export default function ProductsPage() {
   const [products, setProducts] = useState<Product[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
-  const [attributes, setAttributes] = useState<Attribute[]>([]);
+  const [allAttributes, setAllAttributes] = useState<Attribute[]>([]); // Backup tất cả attributes
+  const [categoryAttributes, setCategoryAttributes] = useState<Attribute[]>([]); // Attributes theo danh mục hiện tại
   const [loading, setLoading] = useState(false);
   const [showForm, setShowForm] = useState(false);
   const [editingProductId, setEditingProductId] = useState<number | null>(null);
@@ -65,7 +73,9 @@ export default function ProductsPage() {
   const [form, setForm] = useState({
     name: "", price: "", original_price: "", stock: "", category_id: "",
     image: null as File | null, is_new: false, is_hot: false,
-    attributes: [] as { attribute_id: string; value: string }[]
+    attributes: [] as {
+      [x: string]: string; attribute_id: string; value: string 
+}[]
   });
 
   const editor = useEditor({
@@ -77,11 +87,11 @@ export default function ProductsPage() {
 
   useEffect(() => () => editor?.destroy(), [editor]);
 
-  // ==================== FETCH DATA (ĐÃ FIX LỖI FILTER) ====================
+  // ==================== FETCH DATA ====================
   const fetchProducts = async () => {
     try {
       const res = await api.get("/products");
-      const list = Array.isArray(res.data) ? res.data : res.data?.data || res.data || [];
+      const list = Array.isArray(res.data) ? res.data : res.data?.data || [];
       setProducts(list);
     } catch {
       toast.error("Lỗi tải sản phẩm");
@@ -96,58 +106,109 @@ export default function ProductsPage() {
     } catch { toast.error("Lỗi tải danh mục"); }
   };
 
-  const fetchAttributes = async () => {
+  const fetchAllAttributes = async () => {
     try {
       const res = await api.get("/admin/attributes");
-      setAttributes(Array.isArray(res.data) ? res.data : res.data?.data || []);
+      const list = Array.isArray(res.data) ? res.data : res.data?.data || [];
+      setAllAttributes(list);
     } catch { }
+  };
+
+  // Load attributes theo danh mục
+  const loadAttributesByCategory = async (categoryId: string) => {
+    if (!categoryId) {
+      setCategoryAttributes([]);
+      return;
+    }
+    try {
+      const res = await api.get(`admin/attributes-by-category/${categoryId}`);
+      const list = Array.isArray(res.data) ? res.data : res.data?.data || res.data || [];
+      setCategoryAttributes(list);
+    } catch (err) {
+      console.error("Lỗi load attributes theo danh mục:", err);
+      toast.error("Không tải được thông số kỹ thuật");
+      setCategoryAttributes([]);
+    }
   };
 
   useEffect(() => {
     fetchProducts();
     fetchCategories();
-    fetchAttributes();
+    fetchAllAttributes();
   }, []);
 
   useEffect(() => setCurrentPage(1), [searchTerm, categoryFilter]);
 
   // ==================== FORM HANDLERS ====================
   const openForm = (product?: Product) => {
-    if (product) {
-      setEditingProductId(product.id);
-      setForm({
-        name: product.name,
-        price: String(product.price),
-        original_price: product.original_price ? String(product.original_price) : "",
-        stock: String(product.stock),
-        category_id: String(product.category_id),
-        image: null,
-        is_new: !!product.is_new,
-        is_hot: !!product.is_hot,
-        attributes: (product.attributes || []).map(a => ({
-          attribute_id: String(a.attribute_id),
-          value: a.value
-        }))
-      });
-      editor?.commands.setContent(product.description || "");
-      setImagePreview(product.image ? `http://127.0.0.1:8000/storage/${product.image}` : null);
-    } else {
-      setEditingProductId(null);
-      setForm({ name: "", price: "", original_price: "", stock: "", category_id: "", image: null, is_new: false, is_hot: false, attributes: [] });
-      editor?.commands.setContent("");
-      setImagePreview(null);
-    }
-    setShowForm(true);
+  if (product) {
+    setEditingProductId(product.id);
+
+    // Map attributes từ backend về đúng format cho form
+    const mappedAttributes = (product.attributes || []).map(a => ({
+      attribute_id: String(a.attribute_id),
+      attribute_name: a.attribute?.name || "",
+      value: a.value || ""
+    }));
+
+    setForm({
+      name: product.name,
+      price: String(product.price),
+      original_price: product.original_price ? String(product.original_price) : "",
+      stock: String(product.stock),
+      category_id: String(product.category_id),
+      image: null,
+      is_new: !!product.is_new,
+      is_hot: !!product.is_hot,
+      attributes: mappedAttributes
+    });
+
+    // Set nội dung editor
+    editor?.commands.setContent(product.description || "");
+
+    // Set preview ảnh nếu có
+    setImagePreview(product.image ? `http://127.0.0.1:8000/storage/${product.image}` : null);
+
+    // Load attributes theo category hiện tại (nếu muốn thêm mới)
+    loadAttributesByCategory(String(product.category_id));
+
+  } else {
+    // Mở form mới
+    setEditingProductId(null);
+    setForm({
+      name: "",
+      price: "",
+      original_price: "",
+      stock: "",
+      category_id: "",
+      image: null,
+      is_new: false,
+      is_hot: false,
+      attributes: []
+    });
+    editor?.commands.setContent("");
+    setImagePreview(null);
+    setCategoryAttributes([]);
+  }
+
+  setShowForm(true);
   };
 
   const closeForm = () => {
     setShowForm(false);
     setImagePreview(null);
     editor?.commands.clearContent();
+    setCategoryAttributes([]);
+  };
+
+  const handleCategoryChange = (categoryId: string) => {
+    setForm({ ...form, category_id: categoryId, attributes: [] }); // Reset attributes khi đổi danh mục
+    loadAttributesByCategory(categoryId);
   };
 
   const addAttributeField = () => setForm({ ...form, attributes: [...form.attributes, { attribute_id: "", value: "" }] });
   const removeAttributeField = (i: number) => setForm({ ...form, attributes: form.attributes.filter((_, idx) => idx !== i) });
+
   const updateAttribute = (i: number, field: "attribute_id" | "value", val: string) => {
     const updated = [...form.attributes];
     updated[i][field] = val;
@@ -155,45 +216,63 @@ export default function ProductsPage() {
   };
 
   const saveProduct = async () => {
-    if (!form.name.trim() || !form.price || !form.stock || !form.category_id) {
-      toast.error("Vui lòng điền đầy đủ thông tin bắt buộc!");
-      return;
-    }
+  if (!form.name.trim() || !form.price || !form.stock || !form.category_id) {
+    toast.error("Vui lòng điền đầy đủ thông tin bắt buộc!");
+    return;
+  }
 
-    setLoading(true);
-    const data = new FormData();
-    data.append("name", form.name.trim());
-    data.append("price", form.price);
-    form.original_price.trim() && data.append("original_price", form.original_price);
-    data.append("stock", form.stock);
-    data.append("category_id", form.category_id);
-    data.append("description", editor?.getHTML() || "");
-    data.append("is_new", form.is_new ? "1" : "0");
-    data.append("is_hot", form.is_hot ? "1" : "0");
-    form.image && data.append("image", form.image);
+  setLoading(true);
 
-    form.attributes.forEach((a, i) => {
-      if (a.attribute_id && a.value.trim()) {
-        data.append(`attributes[${i}][attribute_id]`, a.attribute_id);
-        data.append(`attributes[${i}][value]`, a.value.trim());
+  try {
+    // 1️⃣ Lưu product chính
+    const productData = new FormData();
+    productData.append("name", form.name.trim());
+    productData.append("price", form.price);
+    form.original_price?.trim() && productData.append("original_price", form.original_price);
+    productData.append("stock", form.stock);
+    productData.append("category_id", form.category_id);
+    productData.append("description", editor?.getHTML() || "");
+    productData.append("is_new", form.is_new ? "1" : "0");
+    productData.append("is_hot", form.is_hot ? "1" : "0");
+    form.image && productData.append("image", form.image);
+
+    if (editingProductId) productData.append("_method", "PUT");
+
+    const resProduct = editingProductId
+      ? await api.post(`/products/${editingProductId}`, productData)
+      : await api.post("/products", productData);
+
+    const productId = editingProductId ? editingProductId : resProduct.data.id;
+
+    // 2️⃣ Lưu tất cả attributes
+    for (const attr of form.attributes) {
+      if (!attr.attribute_id || !attr.value?.trim()) continue;
+
+      try {
+        await api.post(`admin/products/${productId}/attributes`, {
+          attribute_id: attr.attribute_id,
+          value: attr.value.trim(),
+        });
+      } catch (err: any) {
+        console.error("Lỗi lưu attribute:", err.response?.data || err.message);
+        toast.error(
+          `Không lưu được thuộc tính ${attr.attribute_name || attr.attribute_id}: ${
+            err.response?.data?.message || err.message || "Lỗi không xác định"
+          }`
+        );
       }
-    });
-
-    if (editingProductId) data.append("_method", "PUT");
-
-    try {
-      editingProductId
-        ? await api.post(`/products/${editingProductId}`, data)
-        : await api.post("/products", data);
-      toast.success("Lưu sản phẩm thành công!");
-      fetchProducts();
-      closeForm();
-    } catch (err: any) {
-      toast.error(err.response?.data?.message || "Lưu thất bại!");
-    } finally {
-      setLoading(false);
     }
-  };
+
+    toast.success("Lưu sản phẩm thành công!");
+    fetchProducts();
+    closeForm();
+  } catch (err: any) {
+    console.error("Lỗi lưu sản phẩm:", err.response?.data || err.message);
+    toast.error(err.response?.data?.message || err.message || "Lưu thất bại!");
+  } finally {
+    setLoading(false);
+  }
+};
 
   const deleteProduct = async (id: number) => {
     if (!confirm("Xóa sản phẩm này?")) return;
@@ -281,7 +360,7 @@ export default function ProductsPage() {
             </div>
           </div>
 
-          {/* Products Grid - ĐÃ XÓA HIỂN THỊ ATTRIBUTES TRONG CARD */}
+          {/* Products Grid */}
           <div className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
             {currentProducts.length === 0 ? (
               <div className="p-20 text-center">
@@ -314,12 +393,10 @@ export default function ProductsPage() {
 
                         <div className="p-5">
                           <h3 className="font-bold text-lg text-gray-900 line-clamp-2">{p.name}</h3>
-
                           <div className="mt-4">
                             <p className="text-2xl font-extrabold text-emerald-600">{formatVND(p.price)}</p>
                             {p.original_price && p.original_price > p.price && <p className="text-sm text-gray-500 line-through mt-1">{formatVND(p.original_price)}</p>}
                           </div>
-
                           <div className="flex items-center gap-1 text-sm text-gray-600 mt-3">
                             <Box className="w-4 h-4" />
                             <span>{p.stock} cái</span>
@@ -361,126 +438,130 @@ export default function ProductsPage() {
               </>
             )}
           </div>
-        </div>
 
-        {/* ==================== FORM THÊM/SỬA VỚI ATTRIBUTES ĐỘNG ==================== */}
-        {showForm && (
-          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 overflow-y-auto">
-            <div className="bg-white rounded-3xl shadow-2xl w-full max-w-7xl max-h-[95vh] overflow-y-auto">
-              <div className="sticky top-0 bg-white border-b border-gray-200 p-6 flex items-center justify-between">
-                <h2 className="text-2xl font-bold text-gray-900">{editingProductId ? "Sửa sản phẩm" : "Thêm sản phẩm mới"}</h2>
-                <button onClick={closeForm} className="p-2 hover:bg-gray-100 rounded-xl"><X className="w-6 h-6 text-gray-500" /></button>
-              </div>
+          {/* ==================== FORM THÊM/SỬA ==================== */}
+          {showForm && (
+            <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 overflow-y-auto">
+              <div className="bg-white rounded-3xl shadow-2xl w-full max-w-7xl max-h-[95vh] overflow-y-auto">
+                <div className="sticky top-0 bg-white border-b border-gray-200 p-6 flex items-center justify-between">
+                  <h2 className="text-2xl font-bold text-gray-900">{editingProductId ? "Sửa sản phẩm" : "Thêm sản phẩm mới"}</h2>
+                  <button onClick={closeForm} className="p-2 hover:bg-gray-100 rounded-xl"><X className="w-6 h-6 text-gray-500" /></button>
+                </div>
 
-              <div className="p-6 grid grid-cols-1 lg:grid-cols-2 gap-8 text-black">
-                <div className="space-y-6">
-                  <div>
-                    <label className="flex items-center gap-2 text-sm font-semibold text-gray-700 mb-2"><Tag className="w-4 h-4" /> Tên sản phẩm</label>
-                    <input value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} placeholder="Nhập tên sản phẩm..." className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-4 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none" />
+                <div className="p-6 grid grid-cols-1 lg:grid-cols-2 gap-8 text-black">
+                  <div className="space-y-6">
+                    <div>
+                      <label className="flex items-center gap-2 text-sm font-semibold text-gray-700 mb-2"><Tag className="w-4 h-4" /> Tên sản phẩm</label>
+                      <input value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} placeholder="Nhập tên sản phẩm..." className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-4 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none" />
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label className="flex items-center gap-2 text-sm font-semibold text-gray-700 mb-2"><DollarSign className="w-4 h-4" /> Giá bán</label>
+                        <input type="number" value={form.price} onChange={e => setForm({ ...form, price: e.target.value })} className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-4 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none" />
+                      </div>
+                      <div>
+                        <label className="flex items-center gap-2 text-sm font-semibold text-gray-700 mb-2"><Percent className="w-4 h-4" /> Giá gốc</label>
+                        <input type="number" value={form.original_price} onChange={e => setForm({ ...form, original_price: e.target.value })} placeholder="Để trống nếu không giảm" className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-4 focus:ring-red-500/20 focus:border-red-500 outline-none" />
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label className="flex items-center gap-2 text-sm font-semibold text-gray-700 mb-2"><Box className="w-4 h-4" /> Tồn kho</label>
+                        <input type="number" value={form.stock} onChange={e => setForm({ ...form, stock: e.target.value })} className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-4 focus:ring-purple-500/20 focus:border-purple-500 outline-none" />
+                      </div>
+                      <div>
+                        <label className="flex items-center gap-2 text-sm font-semibold text-gray-700 mb-2">Danh mục</label>
+                        <select value={form.category_id} onChange={e => handleCategoryChange(e.target.value)} className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-4 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none">
+                          <option value="">Chọn danh mục</option>
+                          {categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                        </select>
+                      </div>
+                    </div>
+
+                    <div className="flex gap-8">
+                      <label className="flex items-center gap-3 cursor-pointer">
+                        <input type="checkbox" checked={form.is_new} onChange={e => setForm({ ...form, is_new: e.target.checked })} className="w-5 h-5 text-red-600 rounded focus:ring-red-500" />
+                        <span className="flex items-center gap-2 font-medium text-gray-800"><Sparkles className="w-5 h-5 text-red-500" /> Mới</span>
+                      </label>
+                      <label className="flex items-center gap-3 cursor-pointer">
+                        <input type="checkbox" checked={form.is_hot} onChange={e => setForm({ ...form, is_hot: e.target.checked })} className="w-5 h-5 text-orange-600 rounded focus:ring-orange-500" />
+                        <span className="flex items-center gap-2 font-medium text-gray-800"><Flame className="w-5 h-5 text-orange-500" /> Hot</span>
+                      </label>
+                    </div>
                   </div>
 
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-6">
                     <div>
-                      <label className="flex items-center gap-2 text-sm font-semibold text-gray-700 mb-2"><DollarSign className="w-4 h-4" /> Giá bán</label>
-                      <input type="number" value={form.price} onChange={e => setForm({ ...form, price: e.target.value })} className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-4 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none" />
+                      <label className="flex items-center gap-2 text-sm font-semibold text-gray-700 mb-2"><ImageIcon className="w-4 h-4" /> Hình ảnh</label>
+                      <div className="relative border-2 border-dashed border-gray-300 rounded-xl p-10 text-center hover:border-indigo-500 cursor-pointer">
+                        <input type="file" accept="image/*" onChange={handleImageChange} className="absolute inset-0 opacity-0 cursor-pointer z-10" />
+                        {imagePreview ? <img src={imagePreview} alt="Preview" className="max-h-72 mx-auto rounded-lg shadow-md" /> : (
+                          <div>
+                            <ImageIcon className="w-14 h-14 text-gray-400 mx-auto mb-3" />
+                            <p className="text-gray-600 font-medium">Click để tải ảnh (tối đa 2MB)</p>
+                          </div>
+                        )}
+                      </div>
                     </div>
-                    <div>
-                      <label className="flex items-center gap-2 text-sm font-semibold text-gray-700 mb-2"><Percent className="w-4 h-4" /> Giá gốc</label>
-                      <input type="number" value={form.original_price} onChange={e => setForm({ ...form, original_price: e.target.value })} placeholder="Để trống nếu không giảm" className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-4 focus:ring-red-500/20 focus:border-red-500 outline-none" />
-                    </div>
-                  </div>
 
-                  <div className="grid grid-cols-2 gap-4">
+                    {/* THUỘC TÍNH ĐỘNG */}
                     <div>
-                      <label className="flex items-center gap-2 text-sm font-semibold text-gray-700 mb-2"><Box className="w-4 h-4" /> Tồn kho</label>
-                      <input type="number" value={form.stock} onChange={e => setForm({ ...form, stock: e.target.value })} className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-4 focus:ring-purple-500/20 focus:border-purple-500 outline-none" />
+                      <div className="flex items-center justify-between mb-4">
+                        <label className="flex items-center gap-2 text-sm font-semibold text-gray-700"><Settings className="w-4 h-4" /> Thông số kỹ thuật</label>
+                        <button onClick={addAttributeField} className="text-indigo-600 hover:text-indigo-700 font-medium text-sm flex items-center gap-1">
+                          <Plus className="w-4 h-4" /> Thêm thuộc tính
+                        </button>
+                      </div>
+                      <div className="space-y-3">
+                        {form.attributes.length === 0 && (
+                          <p className="text-sm text-gray-400 italic py-4 text-center bg-gray-50 rounded-lg">
+                            {form.category_id ? "Chưa có thuộc tính nào cho danh mục này" : "Vui lòng chọn danh mục trước"}
+                          </p>
+                        )}
+                        {form.attributes.map((attr, i) => (
+                          <div key={i} className="flex gap-3 items-end">
+                            <div className="flex-1">
+                              <select value={attr.attribute_id} onChange={e => updateAttribute(i, "attribute_id", e.target.value)}
+                                className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none text-sm">
+                                <option value="">Chọn thuộc tính</option>
+                                {categoryAttributes.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
+                              </select>
+                            </div>
+                            <div className="flex-1">
+                              <input type="text" value={attr.value || ""} onChange={e => updateAttribute(i, "value", e.target.value)}
+                                placeholder="Giá trị (VD: Space Gray, 256GB)" className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 outline-none text-sm" />
+                            </div>
+                            <button onClick={() => removeAttributeField(i)} className="p-2.5 text-red-600 hover:bg-red-50 rounded-lg">
+                              <Trash className="w-4 h-4" />
+                            </button>
+                          </div>
+                        ))}
+                      </div>
                     </div>
-                    <div>
-                      <label className="flex items-center gap-2 text-sm font-semibold text-gray-700 mb-2">Danh mục</label>
-                      <select value={form.category_id} onChange={e => setForm({ ...form, category_id: e.target.value })} className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-4 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none">
-                        <option value="">Chọn danh mục</option>
-                        {categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-                      </select>
-                    </div>
-                  </div>
 
-                  <div className="flex gap-8">
-                    <label className="flex items-center gap-3 cursor-pointer">
-                      <input type="checkbox" checked={form.is_new} onChange={e => setForm({ ...form, is_new: e.target.checked })} className="w-5 h-5 text-red-600 rounded focus:ring-red-500" />
-                      <span className="flex items-center gap-2 font-medium text-gray-800"><Sparkles className="w-5 h-5 text-red-500" /> Mới</span>
-                    </label>
-                    <label className="flex items-center gap-3 cursor-pointer">
-                      <input type="checkbox" checked={form.is_hot} onChange={e => setForm({ ...form, is_hot: e.target.checked })} className="w-5 h-5 text-orange-600 rounded focus:ring-orange-500" />
-                      <span className="flex items-center gap-2 font-medium text-gray-800"><Flame className="w-5 h-5 text-orange-500" /> Hot</span>
-                    </label>
+                    <div>
+                      <label className="flex items-center gap-2 text-sm font-semibold text-gray-700 mb-2">Mô tả chi tiết</label>
+                      <div className="border border-gray-300 rounded-xl overflow-hidden focus-within:ring-4 focus-within:ring-indigo-500/20">
+                        <EditorContent editor={editor} />
+                      </div>
+                    </div>
                   </div>
                 </div>
 
-                <div className="space-y-6">
-                  <div>
-                    <label className="flex items-center gap-2 text-sm font-semibold text-gray-700 mb-2"><ImageIcon className="w-4 h-4" /> Hình ảnh</label>
-                    <div className="relative border-2 border-dashed border-gray-300 rounded-xl p-10 text-center hover:border-indigo-500 cursor-pointer">
-                      <input type="file" accept="image/*" onChange={handleImageChange} className="absolute inset-0 opacity-0 cursor-pointer z-10" />
-                      {imagePreview ? <img src={imagePreview} alt="Preview" className="max-h-72 mx-auto rounded-lg shadow-md" /> : (
-                        <div>
-                          <ImageIcon className="w-14 h-14 text-gray-400 mx-auto mb-3" />
-                          <p className="text-gray-600 font-medium">Click để tải ảnh (tối đa 2MB)</p>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* THUỘC TÍNH ĐỘNG - CHỈ HIỂN THỊ TRONG FORM */}
-                  <div>
-                    <div className="flex items-center justify-between mb-4">
-                      <label className="flex items-center gap-2 text-sm font-semibold text-gray-700"><Settings className="w-4 h-4" /> Thông số kỹ thuật</label>
-                      <button onClick={addAttributeField} className="text-indigo-600 hover:text-indigo-700 font-medium text-sm flex items-center gap-1">
-                        <Plus className="w-4 h-4" /> Thêm thuộc tính
-                      </button>
-                    </div>
-                    <div className="space-y-3">
-                      {form.attributes.length === 0 && <p className="text-sm text-gray-400 italic py-4 text-center bg-gray-50 rounded-lg">Chưa có thuộc tính nào</p>}
-                      {form.attributes.map((attr, i) => (
-                        <div key={i} className="flex gap-3 items-end">
-                          <div className="flex-1">
-                            <select value={attr.attribute_id} onChange={e => updateAttribute(i, "attribute_id", e.target.value)}
-                              className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none text-sm">
-                              <option value="">Chọn thuộc tính</option>
-                              {attributes.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
-                            </select>
-                          </div>
-                          <div className="flex-1">
-                            <input type="text" value={attr.value} onChange={e => updateAttribute(i, "value", e.target.value)}
-                              placeholder="Giá trị (VD: Space Gray, 256GB)" className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 outline-none text-sm" />
-                          </div>
-                          <button onClick={() => removeAttributeField(i)} className="p-2.5 text-red-600 hover:bg-red-50 rounded-lg">
-                            <Trash className="w-4 h-4" />
-                          </button>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-
-                  <div>
-                    <label className="flex items-center gap-2 text-sm font-semibold text-gray-700 mb-2">Mô tả chi tiết</label>
-                    <div className="border border-gray-300 rounded-xl overflow-hidden focus-within:ring-4 focus-within:ring-indigo-500/20">
-                      <EditorContent editor={editor} />
-                    </div>
-                  </div>
+                <div className="sticky bottom-0 bg-white border-t border-gray-200 p-6 flex justify-end gap-4">
+                  <button onClick={closeForm} className="px-6 py-3 border border-gray-300 rounded-xl font-semibold hover:bg-gray-50">Hủy</button>
+                  <button onClick={saveProduct} disabled={loading}
+                    className="flex items-center gap-3 px-8 py-3 bg-gradient-to-r from-emerald-500 to-teal-600 text-white font-bold rounded-xl hover:from-emerald-600 hover:to-teal-700 disabled:opacity-60 shadow-lg transform hover:scale-105">
+                    {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : <Save className="w-5 h-5" />}
+                    {loading ? "Đang lưu..." : "Lưu sản phẩm"}
+                  </button>
                 </div>
-              </div>
-
-              <div className="sticky bottom-0 bg-white border-t border-gray-200 p-6 flex justify-end gap-4">
-                <button onClick={closeForm} className="px-6 py-3 border border-gray-300 rounded-xl font-semibold hover:bg-gray-50">Hủy</button>
-                <button onClick={saveProduct} disabled={loading}
-                  className="flex items-center gap-3 px-8 py-3 bg-gradient-to-r from-emerald-500 to-teal-600 text-white font-bold rounded-xl hover:from-emerald-600 hover:to-teal-700 disabled:opacity-60 shadow-lg transform hover:scale-105">
-                  {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : <Save className="w-5 h-5" />}
-                  {loading ? "Đang lưu..." : "Lưu sản phẩm"}
-                </button>
               </div>
             </div>
-          </div>
-        )}
+          )}
+        </div>
       </div>
     </>
   );

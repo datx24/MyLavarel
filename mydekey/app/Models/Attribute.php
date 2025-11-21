@@ -22,8 +22,11 @@ class Attribute extends Model
         return $this->belongsTo(Category::class);
     }
 
+    // App/Models/Attribute.php
     public function products()
     {
-        return $this->hasMany(ProductAttribute::class);
+        return $this->belongsToMany(Product::class, 'product_attributes')
+                    ->withPivot('value')
+                    ->withTimestamps();
     }
 }

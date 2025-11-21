@@ -65,4 +65,14 @@ class AttributeController extends Controller
             'message' => 'Xóa attribute thành công'
         ]);
     }
+
+    public function getByCategory($category_id)
+    {
+        $attributes = Attribute::where('category_id', $category_id)
+            ->orWhereNull('category_id') 
+            ->orderBy('name')
+            ->get();
+
+        return response()->json($attributes);
+    }
 }
