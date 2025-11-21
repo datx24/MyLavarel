@@ -28,6 +28,7 @@ interface Product {
   is_new?: boolean | number;
   is_hot?: boolean | number;
   category_id?: number;
+  specs?: { [key: string]: string }; // Thông số kỹ thuật
 }
 
 export default function ProductDetailPage() {
@@ -45,7 +46,7 @@ export default function ProductDetailPage() {
   const intervalRef = useRef<number | null>(null);
   const directionRef = useRef<1 | -1>(1);
 
-  // Load wishlist from localStorage on mount
+  // Load wishlist from localStorage
   useEffect(() => {
     if (typeof window !== 'undefined') {
       const saved = localStorage.getItem("wishlist");
@@ -57,9 +58,7 @@ export default function ProductDetailPage() {
 
   const getImageUrl = (image?: string) => {
     if (!image) return "/logo/banner.jpg";
-    return image.startsWith("http")
-      ? image
-      : `http://127.0.0.1:8000/storage/${image}`;
+    return image.startsWith("http") ? image : `http://127.0.0.1:8000/storage/${image}`;
   };
 
   useEffect(() => {
@@ -90,23 +89,18 @@ export default function ProductDetailPage() {
     fetchProductAndSuggest();
   }, [slug, router]);
 
-  // Auto scroll qua lại
+  // Auto scroll suggested products
   useEffect(() => {
     const scrollContainer = scrollRef.current;
     if (!scrollContainer || suggestProducts.length === 0) return;
 
     const scrollStep = () => {
       if (!scrollContainer) return;
-
-      if (
-        scrollContainer.scrollLeft + scrollContainer.clientWidth >=
-        scrollContainer.scrollWidth
-      ) {
+      if (scrollContainer.scrollLeft + scrollContainer.clientWidth >= scrollContainer.scrollWidth) {
         directionRef.current = -1;
       } else if (scrollContainer.scrollLeft <= 0) {
         directionRef.current = 1;
       }
-
       scrollContainer.scrollLeft += directionRef.current * 1.5;
     };
 
@@ -118,55 +112,53 @@ export default function ProductDetailPage() {
   }, [suggestProducts]);
 
   const handleAddToCart = (buyNow = false) => {
-    if (!product || typeof window === 'undefined') return;
+    if (!product || typeof window === "undefined") return;
+
     const cart = JSON.parse(localStorage.getItem("cart") || "[]");
+    const productPrice = Number(product.price) || 0;
     const existingItem = cart.find((item: any) => item.product_id === product.id);
 
-    if (existingItem) existingItem.quantity += quantity;
-    else
+    if (existingItem) {
+      existingItem.quantity += quantity;
+    } else {
       cart.push({
         product_id: product.id,
         name: product.name,
-        price: product.price,
+        price: productPrice,
         image: product.image,
         quantity,
       });
+    }
 
     localStorage.setItem("cart", JSON.stringify(cart));
     window.dispatchEvent(new Event("storage"));
 
-    if (buyNow) router.push(`/cart?product=${product.id}`);
+    if (buyNow) router.push("/cart");
     else alert(`✅ Đã thêm "${product.name}" vào giỏ hàng!`);
   };
 
   const toggleWishlist = (productId: number) => {
     if (typeof window === 'undefined') return;
     const newWishlist = new Set(wishlist);
-    if (newWishlist.has(productId)) {
-      newWishlist.delete(productId);
-    } else {
-      newWishlist.add(productId);
-    }
+    if (newWishlist.has(productId)) newWishlist.delete(productId);
+    else newWishlist.add(productId);
     setWishlist(newWishlist);
     localStorage.setItem("wishlist", JSON.stringify(Array.from(newWishlist)));
   };
 
-  if (loading)
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-500"></div>
-        <p className="ml-3 text-gray-600 font-medium">Đang tải sản phẩm...</p>
-      </div>
-    );
+  if (loading) return (
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100">
+      <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-500"></div>
+      <p className="ml-3 text-gray-600 font-medium">Đang tải sản phẩm...</p>
+    </div>
+  );
 
-  if (!product)
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100">
-        <p className="text-gray-600 text-lg font-medium">Sản phẩm không tồn tại</p>
-      </div>
-    );
+  if (!product) return (
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100">
+      <p className="text-gray-600 text-lg font-medium">Sản phẩm không tồn tại</p>
+    </div>
+  );
 
-  // Hàm decode HTML entity
   const decodeHtml = (html: string) => {
     if (typeof window === "undefined") return html;
     const txt = document.createElement("textarea");
@@ -174,38 +166,23 @@ export default function ProductDetailPage() {
     return txt.value;
   };
 
-  // Hàm xử lý URL cho ảnh trong HTML description
   const processDescriptionHtml = (html: string) => {
     if (!html) return html;
-    
-    // Decode entities trước
     let processed = decodeHtml(html);
-    
-    // Thay thế src của <img> tags: nếu không phải http, prefix với base URL
     processed = processed.replace(
       /<img[^>]+src=["']([^"']+)["'][^>]*>/gi,
-      (match, src) => {
-        const imgUrl = getImageUrl(src);
-        return match.replace(src, imgUrl);
-      }
+      (match, src) => match.replace(src, getImageUrl(src))
     );
-    
     return processed;
   };
 
-  // Clean text cho preview (chỉ text)
   const cleanDescription = product.description
     ? decodeHtml(product.description.replace(/<[^>]*>/g, "").trim())
     : "";
-  const previewDesc =
-    showFullDesc || cleanDescription.length <= 120
-      ? cleanDescription
-      : cleanDescription.slice(0, 120) + "...";
-
-  // Full HTML cho mô tả đầy đủ
-  const fullDescriptionHtml = product.description
-    ? processDescriptionHtml(product.description)
-    : "";
+  const previewDesc = showFullDesc || cleanDescription.length <= 120
+    ? cleanDescription
+    : cleanDescription.slice(0, 120) + "...";
+  const fullDescriptionHtml = product.description ? processDescriptionHtml(product.description) : "";
 
   return (
     <div className="bg-[#f1f1f1] min-h-screen flex flex-col">
@@ -213,9 +190,9 @@ export default function ProductDetailPage() {
       <HeroBanner />
 
       <main className="max-w-7xl mx-auto px-4 py-8 flex-1">
-        {/* Chi tiết sản phẩm */}
+        {/* Product Detail */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-12">
-          {/* Image Section */}
+          {/* Image */}
           <div className="relative group">
             <div className="aspect-square bg-gradient-to-br from-gray-50 to-gray-100 rounded-2xl overflow-hidden shadow-xl">
               <Image
@@ -227,32 +204,26 @@ export default function ProductDetailPage() {
                 unoptimized
               />
             </div>
-            {/* Quick Wishlist Toggle */}
             <button
               onClick={() => toggleWishlist(product.id)}
               className="absolute top-4 right-4 bg-white/90 hover:bg-white rounded-full p-2 shadow-lg transition-all duration-200"
             >
               <Heart
-                className={`w-5 h-5 transition-colors duration-200 ${wishlist.has(product.id) ? 'text-red-500 fill-red-500' : 'text-gray-600'
-                  }`}
+                className={`w-5 h-5 transition-colors duration-200 ${wishlist.has(product.id) ? 'text-red-500 fill-red-500' : 'text-gray-600'}`}
               />
             </button>
           </div>
 
-          {/* Product Info Section */}
+          {/* Product Info */}
           <div className="space-y-6 flex flex-col justify-between">
             <div>
               <h1 className="text-3xl lg:text-4xl font-bold text-gray-900 leading-tight">{product.name}</h1>
 
               <div className="flex items-center gap-4 mt-4">
                 <div className="flex items-baseline gap-3">
-                  <span className="text-4xl font-bold text-orange-600">
-                    {Number(product.price).toLocaleString()}đ
-                  </span>
+                  <span className="text-4xl font-bold text-orange-600">{Number(product.price).toLocaleString()}đ</span>
                   {product.original_price && (
-                    <span className="text-gray-400 line-through text-xl">
-                      {Number(product.original_price).toLocaleString()}đ
-                    </span>
+                    <span className="text-gray-400 line-through text-xl">{Number(product.original_price).toLocaleString()}đ</span>
                   )}
                 </div>
               </div>
@@ -273,23 +244,19 @@ export default function ProductDetailPage() {
               </div>
             </div>
 
-            {/* Quantity Selector */}
+            {/* Quantity */}
             <div className="flex items-center gap-6">
               <span className="font-semibold text-gray-700 text-lg">Số lượng:</span>
               <div className="flex items-center border border-gray-300 rounded-full overflow-hidden shadow-sm">
                 <button
-                  onClick={() => setQuantity((q) => Math.max(1, q - 1))}
+                  onClick={() => setQuantity(q => Math.max(1, q - 1))}
                   className="px-4 py-2 text-gray-600 hover:text-orange-600 hover:bg-gray-50 transition-colors duration-200 flex items-center justify-center"
-                >
-                  <Minus className="w-4 h-4" />
-                </button>
+                ><Minus className="w-4 h-4" /></button>
                 <span className="px-6 py-2 text-lg font-medium bg-white border-x border-gray-200">{quantity}</span>
                 <button
-                  onClick={() => setQuantity((q) => q + 1)}
+                  onClick={() => setQuantity(q => q + 1)}
                   className="px-4 py-2 text-gray-600 hover:text-orange-600 hover:bg-gray-50 transition-colors duration-200 flex items-center justify-center"
-                >
-                  <Plus className="w-4 h-4" />
-                </button>
+                ><Plus className="w-4 h-4" /></button>
               </div>
             </div>
 
@@ -313,35 +280,51 @@ export default function ProductDetailPage() {
           </div>
         </div>
 
-        {/* Description */}
-        {product.description && (
-          <div className="bg-gray-50 rounded-2xl p-4 sm:p-6 shadow-sm mb-12">
-            <h2 className="text-lg sm:text-xl font-semibold text-gray-800 mb-3 flex items-center gap-2">
-              Mô tả sản phẩm
-            </h2>
-            <div className="text-gray-700 leading-relaxed text-sm sm:text-base space-y-3">
-              {showFullDesc ? (
-                // Render full HTML khi mở rộng
-                <div 
-                  className="prose prose-sm max-w-none"
-                  dangerouslySetInnerHTML={{ __html: fullDescriptionHtml }}
-                />
-              ) : (
-                // Preview text thuần
-                <p className="whitespace-pre-wrap">{previewDesc}</p>
-              )}
-              {cleanDescription.length > 120 && (
-                <button
-                  className="text-blue-600 font-medium hover:underline flex items-center gap-1 transition-colors duration-200 text-sm"
-                  onClick={() => setShowFullDesc(!showFullDesc)}
-                >
-                  {showFullDesc ? "Thu gọn" : "Xem thêm"}
-                  <ChevronRight
-                    className={`w-4 h-4 transition-transform ${showFullDesc ? "rotate-90" : ""}`}
+        {/* Description + Specs */}
+        {(product.description || product.specs) && (
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-12">
+            {/* Description */}
+            <div className="bg-gray-50 rounded-2xl p-4 sm:p-6 shadow-sm">
+              <h2 className="text-lg sm:text-xl font-semibold text-gray-800 mb-3 flex items-center gap-2">
+                Mô tả sản phẩm
+              </h2>
+              <div className="text-gray-700 leading-relaxed text-sm sm:text-base space-y-3">
+                {showFullDesc ? (
+                  <div
+                    className="prose prose-sm max-w-none"
+                    dangerouslySetInnerHTML={{ __html: fullDescriptionHtml }}
                   />
-                </button>
-              )}
+                ) : (
+                  <p className="whitespace-pre-wrap">{previewDesc}</p>
+                )}
+                {cleanDescription.length > 120 && (
+                  <button
+                    className="text-blue-600 font-medium hover:underline flex items-center gap-1 transition-colors duration-200 text-sm"
+                    onClick={() => setShowFullDesc(!showFullDesc)}
+                  >
+                    {showFullDesc ? "Thu gọn" : "Xem thêm"}
+                    <ChevronRight className={`w-4 h-4 transition-transform ${showFullDesc ? "rotate-90" : ""}`} />
+                  </button>
+                )}
+              </div>
             </div>
+
+            {/* Specs */}
+            {product.specs && Object.keys(product.specs).length > 0 && (
+              <div className="bg-gray-50 rounded-2xl p-4 sm:p-6 shadow-sm">
+                <h2 className="text-lg sm:text-xl font-semibold text-gray-800 mb-3 flex items-center gap-2">
+                  Thông số kỹ thuật
+                </h2>
+                <ul className="divide-y divide-gray-200 text-sm sm:text-base text-gray-700">
+                  {Object.entries(product.specs).map(([key, value]) => (
+                    <li key={key} className="py-2 flex justify-between">
+                      <span className="font-medium">{key}</span>
+                      <span className="text-gray-600">{value}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
           </div>
         )}
 
@@ -380,9 +363,7 @@ export default function ProductDetailPage() {
                     key={p.id}
                     className="min-w-[220px] flex-shrink-0 bg-white rounded-2xl shadow-lg overflow-hidden hover:shadow-xl transition-all duration-300 hover:-translate-y-1 cursor-pointer"
                     onClick={() => {
-                      // Khi click vào card, load lại ProductDetailPage với slug mới
                       router.push(`/products/${p.slug}`);
-                      // Scroll lên đầu trang
                       window.scrollTo({ top: 0, behavior: "smooth" });
                     }}
                   >
@@ -396,50 +377,34 @@ export default function ProductDetailPage() {
                       />
                       <button
                         onClick={(e) => {
-                          e.stopPropagation(); // Ngăn click vào button wishlist ảnh hưởng tới card click
+                          e.stopPropagation();
                           toggleWishlist(p.id);
                         }}
                         className="absolute top-3 right-3 bg-white/90 hover:bg-white rounded-full p-2 shadow-md transition-all duration-200 opacity-0 group-hover:opacity-100"
                       >
                         <Heart
-                          className={`w-4 h-4 transition-colors duration-200 ${wishlist.has(p.id) ? 'text-red-500 fill-red-500' : 'text-gray-600'
-                            }`}
+                          className={`w-4 h-4 transition-colors duration-200 ${wishlist.has(p.id) ? 'text-red-500 fill-red-500' : 'text-gray-600'}`}
                         />
                       </button>
                     </div>
                     <div className="p-4">
-                      <h3 className="text-sm font-semibold text-gray-800 line-clamp-2 mb-2 leading-tight">
-                        {p.name}
-                      </h3>
-                      <p className="text-orange-600 font-bold text-base mb-1">
-                        {Number(p.price).toLocaleString()}đ
-                      </p>
-                      {p.original_price && (
-                        <p className="text-gray-400 text-xs line-through">
-                          {Number(p.original_price).toLocaleString()}đ
-                        </p>
-                      )}
+                      <h3 className="text-sm font-semibold text-gray-800 line-clamp-2 mb-2 leading-tight">{p.name}</h3>
+                      <p className="text-orange-600 font-bold text-base mb-1">{Number(p.price).toLocaleString()}đ</p>
+                      {p.original_price && <p className="text-gray-400 text-xs line-through">{Number(p.original_price).toLocaleString()}đ</p>}
                     </div>
                   </div>
                 ))}
-
               </div>
 
               {/* Navigation Buttons */}
               <button
-                onClick={() => {
-                  if (!scrollRef.current) return;
-                  scrollRef.current.scrollLeft -= 300;
-                }}
+                onClick={() => scrollRef.current && (scrollRef.current.scrollLeft -= 300)}
                 className="absolute -left-4 top-1/2 -translate-y-1/2 bg-white/80 hover:bg-white rounded-full shadow-lg p-2 opacity-60 group-hover:opacity-100 transition-all duration-200 z-10"
               >
                 <ChevronLeft className="w-5 h-5 text-gray-700" />
               </button>
               <button
-                onClick={() => {
-                  if (!scrollRef.current) return;
-                  scrollRef.current.scrollLeft += 300;
-                }}
+                onClick={() => scrollRef.current && (scrollRef.current.scrollLeft += 300)}
                 className="absolute -right-4 top-1/2 -translate-y-1/2 bg-white/80 hover:bg-white rounded-full shadow-lg p-2 opacity-60 group-hover:opacity-100 transition-all duration-200 z-10"
               >
                 <ChevronRight className="w-5 h-5 text-gray-700" />
