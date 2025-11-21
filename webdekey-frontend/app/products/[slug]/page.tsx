@@ -17,6 +17,16 @@ import Header from "@/components/user/Header";
 import HeroBanner from "@/components/user/HeroBanner";
 import Footer from "@/components/user/Footer";
 
+interface ProductAttribute {
+  id: number;
+  value: string;
+  attribute: {
+    id: number;
+    name: string;
+    unit?: string | null;
+  };
+}
+
 interface Product {
   id: number;
   name: string;
@@ -28,7 +38,7 @@ interface Product {
   is_new?: boolean | number;
   is_hot?: boolean | number;
   category_id?: number;
-  specs?: { [key: string]: string }; // Thông số kỹ thuật
+  attributes?: ProductAttribute[];
 }
 
 export default function ProductDetailPage() {
@@ -252,7 +262,7 @@ export default function ProductDetailPage() {
                   onClick={() => setQuantity(q => Math.max(1, q - 1))}
                   className="px-4 py-2 text-gray-600 hover:text-orange-600 hover:bg-gray-50 transition-colors duration-200 flex items-center justify-center"
                 ><Minus className="w-4 h-4" /></button>
-                <span className="px-6 py-2 text-lg font-medium bg-white border-x border-gray-200">{quantity}</span>
+                <span className="px-6 py-2 text-lg font-medium bg-white border-x border-gray-200 text-black">{quantity}</span>
                 <button
                   onClick={() => setQuantity(q => q + 1)}
                   className="px-4 py-2 text-gray-600 hover:text-orange-600 hover:bg-gray-50 transition-colors duration-200 flex items-center justify-center"
@@ -281,45 +291,50 @@ export default function ProductDetailPage() {
         </div>
 
         {/* Description + Specs */}
-        {(product.description || product.specs) && (
+        {(product.description || (product.attributes && product.attributes.length > 0)) && (
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-12">
             {/* Description */}
-            <div className="bg-gray-50 rounded-2xl p-4 sm:p-6 shadow-sm">
-              <h2 className="text-lg sm:text-xl font-semibold text-gray-800 mb-3 flex items-center gap-2">
-                Mô tả sản phẩm
-              </h2>
-              <div className="text-gray-700 leading-relaxed text-sm sm:text-base space-y-3">
-                {showFullDesc ? (
-                  <div
-                    className="prose prose-sm max-w-none"
-                    dangerouslySetInnerHTML={{ __html: fullDescriptionHtml }}
-                  />
-                ) : (
-                  <p className="whitespace-pre-wrap">{previewDesc}</p>
-                )}
-                {cleanDescription.length > 120 && (
-                  <button
-                    className="text-blue-600 font-medium hover:underline flex items-center gap-1 transition-colors duration-200 text-sm"
-                    onClick={() => setShowFullDesc(!showFullDesc)}
-                  >
-                    {showFullDesc ? "Thu gọn" : "Xem thêm"}
-                    <ChevronRight className={`w-4 h-4 transition-transform ${showFullDesc ? "rotate-90" : ""}`} />
-                  </button>
-                )}
+            {product.description && (
+              <div className="bg-gray-50 rounded-2xl p-4 sm:p-6 shadow-sm">
+                <h2 className="text-lg sm:text-xl font-semibold text-gray-800 mb-3 flex items-center gap-2">
+                  Mô tả sản phẩm
+                </h2>
+                <div className="text-gray-700 leading-relaxed text-sm sm:text-base space-y-3">
+                  {showFullDesc ? (
+                    <div
+                      className="prose prose-sm max-w-none"
+                      dangerouslySetInnerHTML={{ __html: fullDescriptionHtml }}
+                    />
+                  ) : (
+                    <p className="whitespace-pre-wrap">{previewDesc}</p>
+                  )}
+                  {cleanDescription.length > 120 && (
+                    <button
+                      className="text-blue-600 font-medium hover:underline flex items-center gap-1 transition-colors duration-200 text-sm"
+                      onClick={() => setShowFullDesc(!showFullDesc)}
+                    >
+                      {showFullDesc ? "Thu gọn" : "Xem thêm"}
+                      <ChevronRight className={`w-4 h-4 transition-transform ${showFullDesc ? "rotate-90" : ""}`} />
+                    </button>
+                  )}
+                </div>
               </div>
-            </div>
+            )}
 
             {/* Specs */}
-            {product.specs && Object.keys(product.specs).length > 0 && (
+            {product.attributes && product.attributes.length > 0 && (
               <div className="bg-gray-50 rounded-2xl p-4 sm:p-6 shadow-sm">
                 <h2 className="text-lg sm:text-xl font-semibold text-gray-800 mb-3 flex items-center gap-2">
                   Thông số kỹ thuật
                 </h2>
                 <ul className="divide-y divide-gray-200 text-sm sm:text-base text-gray-700">
-                  {Object.entries(product.specs).map(([key, value]) => (
-                    <li key={key} className="py-2 flex justify-between">
-                      <span className="font-medium">{key}</span>
-                      <span className="text-gray-600">{value}</span>
+                  {product.attributes.map(attr => (
+                    <li key={attr.id} className="py-2">
+                      <span className="font-medium">{attr.attribute?.name}: </span>
+                      <span className="text-gray-600">
+                        {attr.value}
+                        {attr.attribute?.unit ? ` ${attr.attribute.unit}` : ""}
+                      </span>
                     </li>
                   ))}
                 </ul>
@@ -415,6 +430,7 @@ export default function ProductDetailPage() {
       </main>
 
       <Footer />
+
     </div>
-  );
+  )
 }
