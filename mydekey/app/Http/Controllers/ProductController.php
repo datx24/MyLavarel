@@ -289,7 +289,7 @@ class ProductController extends Controller
      */
     public function showBySlug($slug)
     {
-        $product = Product::where('slug', $slug)->first();
+        $product = Product::with(['attributes.attribute'])->where('slug', $slug)->first();
 
         if (!$product) {
             return response()->json([
