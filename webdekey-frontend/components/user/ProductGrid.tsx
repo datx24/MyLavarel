@@ -25,10 +25,13 @@ export default function ProductGrid() {
     const fetchProducts = async () => {
       try {
         const res = await api.get("/products");
-        const allProducts = res.data;
+        
+        // SỬA Ở ĐÂY: lấy mảng thật sự nằm trong data.data
+        const allProducts = Array.isArray(res.data) 
+        ? res.data 
+        : res.data.data || [];
 
-        // CHỈ LẤY SẢN PHẨM CÓ is_new HOẶC is_hot
-        const featuredProducts = allProducts.filter((p: Product) => 
+        const featuredProducts = allProducts.filter((p: Product) =>
           p.is_new === 1 || p.is_hot === 1
         );
 
