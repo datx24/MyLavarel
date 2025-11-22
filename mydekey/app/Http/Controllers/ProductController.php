@@ -34,7 +34,7 @@ class ProductController extends Controller
             return [
                 'attribute_id'   => $attr->id,
                 'attribute_name' => $attr->name,
-                'value'          => $attr->pivot->value,
+                'value'          => $attr->value,
             ];
         });
 
@@ -50,6 +50,7 @@ class ProductController extends Controller
                 'is_new'        => $product->is_new,
                 'is_hot'        => $product->is_hot,
                 'image'         => $product->image,
+                'sub_images'    => $product->sub_images,
                 'category'      => [
                     'id'   => $product->category->id,
                     'name' => $product->category->name,
@@ -78,24 +79,38 @@ class ProductController extends Controller
             'stock' => 'required|integer|min:0',
             'category_id' => 'required|exists:categories,id',
             'image' => 'nullable|image|max:2048',
+            'sub_images' => 'nullable|array',
+            'sub_images.*' => 'image|max:2048',
             'attributes' => 'nullable|array',
             'attributes.*.attribute_id' => 'required|exists:attributes,id',
             'attributes.*.value' => 'nullable|string|max:255',
         ]);
 
+        // Lưu ảnh chính
         if ($request->hasFile('image')) {
             $validated['image'] = $request->file('image')->store('products', 'public');
         }
 
+        // Lưu sub_images
+        $subImagesPaths = [];
+        if ($request->hasFile('sub_images')) {
+            foreach ($request->file('sub_images') as $file) {
+                $subImagesPaths[] = $file->store('products/sub_images', 'public');
+            }
+        }
+        $validated['sub_images'] = $subImagesPaths;
+
+        // Tạo product
         $product = Product::create($validated);
 
-        // Dùng sync để thêm pivot
+        // Lưu attributes
         if (!empty($validated['attributes'])) {
-            $syncData = [];
             foreach ($validated['attributes'] as $attr) {
-                $syncData[$attr['attribute_id']] = ['value' => $attr['value']];
+                $product->attributes()->updateOrCreate(
+                    ['attribute_id' => $attr['attribute_id']],
+                    ['value' => $attr['value'] ?? null]
+                );
             }
-            $product->attributes()->sync($syncData);
         }
 
         $product->load(['category', 'attributes']);
@@ -106,14 +121,9 @@ class ProductController extends Controller
         ], 201);
     }
 
-    public function update(Request $request, $id)
+    public function update(Request $request, Product $product)
     {
-        $product = Product::find($id);
-
-        if (!$product) {
-            return response()->json(['message' => 'Product not found'], 404);
-        }
-
+        // Merge kiểu dữ liệu
         $request->merge([
             'is_new' => $request->input('is_new') == "1",
             'is_hot' => $request->input('is_hot') == "1",
@@ -131,35 +141,50 @@ class ProductController extends Controller
             'stock' => 'required|integer|min:0',
             'category_id' => 'required|exists:categories,id',
             'image' => 'nullable|image|max:2048',
+            'sub_images' => 'nullable|array',
+            'sub_images.*' => 'image|max:2048',
+            'old_sub_images' => 'nullable|array',
+            'old_sub_images.*' => 'string',
             'attributes' => 'nullable|array',
             'attributes.*.attribute_id' => 'required|exists:attributes,id',
             'attributes.*.value' => 'nullable|string|max:255',
+
         ]);
 
+        // Xử lý ảnh chính
         if ($request->hasFile('image')) {
-            if ($product->image) {
-                Storage::disk('public')->delete($product->image);
-            }
             $validated['image'] = $request->file('image')->store('products', 'public');
         }
 
+        // Xử lý sub_images
+        $subImagesPaths = $validated['old_sub_images'] ?? [];
+        if ($request->hasFile('sub_images')) {
+            foreach ($request->file('sub_images') as $file) {
+                $subImagesPaths[] = $file->store('products', 'public');
+            }
+        }
+        $validated['sub_images'] = $subImagesPaths; // <-- lưu thẳng array
+
+        // Cập nhật product
         $product->update($validated);
 
-        // ⭐ Cập nhật attributes bằng sync
-        if ($request->has('attributes') && is_array($request->attributes)) {
-            $syncData = [];
-            foreach ($request->attributes as $attr) {
-                $syncData[$attr['attribute_id']] = ['value' => $attr['value']];
+        // Xử lý attributes
+        $product->attributes()->delete();
+        if (!empty($validated['attributes'])) {
+            foreach ($validated['attributes'] as $attr) {
+                $product->attributes()->create([
+                    'attribute_id' => $attr['attribute_id'],
+                    'value' => $attr['value'] ?? null,
+                ]);
             }
-            $product->attributes()->sync($syncData);
         }
 
         $product->load(['category', 'attributes']);
 
         return response()->json([
-            'message' => 'Product updated successfully',
-            'data'    => $product
-        ]);
+        'message' => 'Product created successfully',
+        'data' => $product
+    ], 201, []); // thêm [] làm tham số thứ 3 (headers)
     }
 
     public function destroy($id) {
