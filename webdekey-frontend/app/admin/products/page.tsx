@@ -340,38 +340,38 @@ export default function ProductsPage() {
   // Save product (create or update)
   // ====================
   const saveProduct = async () => {
-  const productData = new FormData();
-  productData.append("name", form.name.trim());
-  productData.append("price", form.price);
-  productData.append("stock", form.stock);
-  productData.append("category_id", form.category_id);
-  productData.append("is_new", form.is_new ? "1" : "0");
-  productData.append("is_hot", form.is_hot ? "1" : "0");
+    const productData = new FormData();
+    productData.append("name", form.name.trim());
+    productData.append("price", form.price);
+    productData.append("stock", form.stock);
+    productData.append("category_id", form.category_id);
+    productData.append("is_new", form.is_new ? "1" : "0");
+    productData.append("is_hot", form.is_hot ? "1" : "0");
 
-  if (form.image) productData.append("image", form.image);
+    if (form.image) productData.append("image", form.image);
 
-  form.old_sub_images.forEach(path => productData.append("old_sub_images[]", path));
-  form.sub_images.forEach(file => productData.append("sub_images[]", file));
+    form.old_sub_images.forEach(path => productData.append("old_sub_images[]", path));
+    form.sub_images.forEach(file => productData.append("sub_images[]", file));
 
-  // Thêm attributes theo index: attributes[0][attribute_id], attributes[0][value]
-  form.attributes.forEach((attr, idx) => {
-    if (!attr.attribute_id) return;
-    productData.append(`attributes[${idx}][attribute_id]`, attr.attribute_id);
-    productData.append(`attributes[${idx}][value]`, attr.value || "");
-  });
+    // Thêm attributes theo index: attributes[0][attribute_id], attributes[0][value]
+    form.attributes.forEach((attr, idx) => {
+      if (!attr.attribute_id) return;
+      productData.append(`attributes[${idx}][attribute_id]`, attr.attribute_id);
+      productData.append(`attributes[${idx}][value]`, attr.value || "");
+    });
 
-  if (editingProductId) {
-    productData.append("_method", "PUT");
-  }
+    if (editingProductId) {
+      productData.append("_method", "PUT");
+    }
 
-  const res = editingProductId
-    ? await api.post(`/products/${editingProductId}`, productData)
-    : await api.post("/products", productData);
+    const res = editingProductId
+      ? await api.post(`/products/${editingProductId}`, productData)
+      : await api.post("/products", productData);
 
-  toast.success("Lưu sản phẩm thành công!");
-  fetchProducts();
-  closeForm();
-};
+    toast.success("Lưu sản phẩm thành công!");
+    fetchProducts();
+    closeForm();
+  };
 
   // ====================
   // Delete product
@@ -668,15 +668,14 @@ export default function ProductsPage() {
                         ))}
                       </div>
                     </div>
-
-                    <div>
-                      <label className="flex items-center gap-2 text-sm font-semibold text-gray-700 mb-2">Mô tả chi tiết</label>
-                      <div className="border border-gray-300 rounded-xl overflow-hidden focus-within:ring-4 focus-within:ring-indigo-500/20">
-                        <TiptapEditor
-                          value={form.description}
-                          onChange={(html) => setForm({ ...form, description: html })}
-                        />
-                      </div>
+                  </div>
+                  <div>
+                    <label className="flex items-center gap-2 text-sm font-semibold text-gray-700 mb-2">Mô tả chi tiết</label>
+                    <div className="border border-gray-300 rounded-xl overflow-hidden focus-within:ring-4 focus-within:ring-indigo-500/20">
+                      <TiptapEditor
+                        value={form.description}
+                        onChange={(html) => setForm({ ...form, description: html })}
+                      />
                     </div>
                   </div>
                 </div>
