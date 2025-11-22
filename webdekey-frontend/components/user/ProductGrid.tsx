@@ -32,7 +32,7 @@ export default function ProductGrid() {
         : res.data.data || [];
 
         const featuredProducts = allProducts.filter((p: Product) =>
-          p.is_new === 1 || p.is_hot === 1
+          p.is_new === true || p.is_hot === true
         );
 
         setProducts(featuredProducts);
