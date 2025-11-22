@@ -34,10 +34,10 @@ export default function ProductCard({ product }: ProductCardProps) {
               e.currentTarget.src = "/logo/banner.jpg";
             }}
           />
-          {product.is_new === 1 && (
+          {product.is_new === true && (
             <span className="absolute top-2 left-2 bg-red-600 text-white text-xs px-2 py-1 rounded font-medium">MỚI</span>
           )}
-          {product.is_hot === 1 && (
+          {product.is_hot === true && (
             <span className="absolute top-2 right-2 bg-orange-500 text-white text-xs px-2 py-1 rounded font-medium">HOT</span>
           )}
         </div>
