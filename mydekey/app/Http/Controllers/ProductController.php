@@ -63,8 +63,8 @@ class ProductController extends Controller
     public function store(Request $request)
     {
         $request->merge([
-            'is_new' => $request->input('is_new') == "1",
-            'is_hot' => $request->input('is_hot') == "1",
+            'is_new' => $request->boolean('is_new'),
+            'is_hot' => $request->boolean('is_hot'),
             'price' => (float) $request->price,
             'original_price' => $request->filled('original_price') ? (float) $request->original_price : null,
             'stock' => (int) $request->stock,
@@ -78,6 +78,8 @@ class ProductController extends Controller
             'original_price' => 'nullable|numeric|min:0',
             'stock' => 'required|integer|min:0',
             'category_id' => 'required|exists:categories,id',
+            'is_new' => 'nullable|boolean',
+            'is_hot' => 'nullable|boolean',
             'image' => 'nullable|image|max:2048',
             'sub_images' => 'nullable|array',
             'sub_images.*' => 'image|max:2048',
@@ -85,6 +87,10 @@ class ProductController extends Controller
             'attributes.*.attribute_id' => 'required|exists:attributes,id',
             'attributes.*.value' => 'nullable|string|max:255',
         ]);
+
+         // ép kiểu cho chắc chắn
+        $validated['is_new'] = $request->boolean('is_new');
+        $validated['is_hot'] = $request->boolean('is_hot');
 
         // Lưu ảnh chính
         if ($request->hasFile('image')) {
@@ -125,8 +131,8 @@ class ProductController extends Controller
     {
         // Merge kiểu dữ liệu
         $request->merge([
-            'is_new' => $request->input('is_new') == "1",
-            'is_hot' => $request->input('is_hot') == "1",
+            'is_new' => $request->boolean('is_new'),
+            'is_hot' => $request->boolean('is_hot'),
             'price' => (float) $request->price,
             'original_price' => $request->filled('original_price') ? (float) $request->original_price : null,
             'stock' => (int) $request->stock,
@@ -151,6 +157,10 @@ class ProductController extends Controller
 
         ]);
 
+        // bắt buộc add 2 field này vào validated!
+        $validated['is_new'] = $request->boolean('is_new');
+        $validated['is_hot'] = $request->boolean('is_hot');
+
         // Xử lý ảnh chính
         if ($request->hasFile('image')) {
             $validated['image'] = $request->file('image')->store('products', 'public');
@@ -160,7 +170,7 @@ class ProductController extends Controller
         $subImagesPaths = $validated['old_sub_images'] ?? [];
         if ($request->hasFile('sub_images')) {
             foreach ($request->file('sub_images') as $file) {
-                $subImagesPaths[] = $file->store('products', 'public');
+                $subImagesPaths[] = $file->store('products/sub_images', 'public');
             }
         }
         $validated['sub_images'] = $subImagesPaths; // <-- lưu thẳng array
