@@ -22,10 +22,15 @@ class Product extends Model
         'original_price',
         'stock',
         'image',
+        'sub_images',
         'category_id',
         'is_new',
         'is_hot',
         'slug',
+    ];
+
+    protected $casts = [
+        'sub_images' => 'array'
     ];
 
     protected static function booted()
