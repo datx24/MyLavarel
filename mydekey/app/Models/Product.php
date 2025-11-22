@@ -24,13 +24,15 @@ class Product extends Model
         'image',
         'sub_images',
         'category_id',
-        'is_new',
-        'is_hot',
         'slug',
+        'is_new', 
+        'is_hot'
     ];
 
     protected $casts = [
-        'sub_images' => 'array'
+        'sub_images' => 'array',
+        'is_new' => 'boolean',
+        'is_hot' => 'boolean',
     ];
 
     protected static function booted()
