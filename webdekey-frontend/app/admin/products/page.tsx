@@ -1,18 +1,35 @@
 "use client";
 
+import React, { useEffect, useState } from "react";
 import api from "@/utils/api";
-import { useEffect, useState } from "react";
-import { EditorContent, useEditor } from "@tiptap/react";
-import StarterKit from "@tiptap/starter-kit";
-import Image from "@tiptap/extension-image";
 import {
   Package, Plus, Edit3, Trash2, Image as ImageIcon,
   Sparkles, Flame, X, Save, Loader2, Tag, DollarSign, Box,
   Search, Filter, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Percent, Settings, Trash
 } from "lucide-react";
 import toast, { Toaster } from "react-hot-toast";
+import TiptapEditor from "@/components/admin/TiptapEditor";
 
-// ==================== INTERFACES ====================
+
+/**
+ * Version B - Admin Products Component (Full)
+ * - Keeps UI identical to the user's original layout
+ * - Adds full sub_images support (old + new)
+ * - Preview sub_images on edit
+ * - Add / remove sub images in the form
+ * - Show sub images on product card (small thumbnails)
+ * - Send correct FormData payload to backend:
+ *     - old_sub_images[] (strings) for images to keep
+ *     - sub_images[] (files) for newly uploaded files
+ *
+ * Notes:
+ * - This file is intentionally verbose and contains helpful inline comments.
+ * - Adjust API endpoints in `api` util if your base URL differs.
+ */
+
+/* ================================
+   Types & Interfaces
+   ================================ */
 interface Attribute {
   id: number;
   name: string;
@@ -31,23 +48,24 @@ interface AttributeValue {
   name?: string;
   value: string;
   attribute?: Attribute;
-  pivot?: AttributePivot; 
+  pivot?: AttributePivot;
 }
 
 interface Category {
   id: number;
   name: string;
-  slug: string;
+  slug?: string;
 }
 
 interface Product {
   id: number;
   name: string;
-  description: string;
+  description?: string;
   price: number;
   original_price?: number | null;
   stock: number;
   image?: string | null;
+  sub_images?: string[]; // array of storage paths like "products/sub1.jpg"
   category_id: number;
   is_new?: boolean;
   is_hot?: boolean;
@@ -55,45 +73,60 @@ interface Product {
   attributes?: AttributeValue[] | null;
 }
 
-const ITEMS_PER_PAGE = 4; 
+/* ================================
+   Component
+   ================================ */
+const ITEMS_PER_PAGE = 4;
 
 export default function ProductsPage() {
+  // ====================
+  // States
+  // ====================
   const [products, setProducts] = useState<Product[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
-  const [allAttributes, setAllAttributes] = useState<Attribute[]>([]); // Backup tất cả attributes
-  const [categoryAttributes, setCategoryAttributes] = useState<Attribute[]>([]); // Attributes theo danh mục hiện tại
+  const [allAttributes, setAllAttributes] = useState<Attribute[]>([]);
+  const [categoryAttributes, setCategoryAttributes] = useState<Attribute[]>([]);
   const [loading, setLoading] = useState(false);
   const [showForm, setShowForm] = useState(false);
   const [editingProductId, setEditingProductId] = useState<number | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [subImagePreviews, setSubImagePreviews] = useState<string[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
 
+  // Form state contains:
+  // - image: main image file
+  // - sub_images: array of File for new uploads
+  // - old_sub_images: array of string (paths) that will be kept
+  // - attributes: dynamic list
   const [form, setForm] = useState({
-    name: "", price: "", original_price: "", stock: "", category_id: "",
-    image: null as File | null, is_new: false, is_hot: false,
-    attributes: [] as {
-      [x: string]: string; attribute_id: string; value: string 
-}[]
+    name: "",
+    description: "",
+    price: "",
+    original_price: "",
+    stock: "",
+    category_id: "",
+    image: null as File | null,
+    sub_images: [] as File[],
+    old_sub_images: [] as string[], // holds storage paths when editing
+    is_new: false,
+    is_hot: false,
+    attributes: [] as { attribute_id: string; value: string; attribute_name?: string }[],
   });
 
-  const editor = useEditor({
-    extensions: [StarterKit, Image],
-    content: "",
-    immediatelyRender: false,
-    editorProps: { attributes: { class: "prose prose-sm max-w-none focus:outline-none min-h-[180px] p-4 text-black" } },
-  });
-
-  useEffect(() => () => editor?.destroy(), [editor]);
-
-  // ==================== FETCH DATA ====================
+  // ====================
+  // Fetching data
+  // ====================
   const fetchProducts = async () => {
     try {
       const res = await api.get("/products");
       const list = Array.isArray(res.data) ? res.data : res.data?.data || [];
-      setProducts(list);
-    } catch {
+      // Normalize: ensure sub_images exists as array
+      const normalized = list.map((p: any) => ({ ...p, sub_images: p.sub_images || [] }));
+      setProducts(normalized);
+    } catch (err) {
+      console.error(err);
       toast.error("Lỗi tải sản phẩm");
       setProducts([]);
     }
@@ -102,8 +135,13 @@ export default function ProductsPage() {
   const fetchCategories = async () => {
     try {
       const res = await api.get("/categories");
-      setCategories(Array.isArray(res.data) ? res.data : res.data?.data || []);
-    } catch { toast.error("Lỗi tải danh mục"); }
+      const list = Array.isArray(res.data) ? res.data : res.data?.data || [];
+      setCategories(list);
+    } catch (err) {
+      console.error(err);
+      toast.error("Lỗi tải danh mục");
+      setCategories([]);
+    }
   };
 
   const fetchAllAttributes = async () => {
@@ -111,10 +149,11 @@ export default function ProductsPage() {
       const res = await api.get("/admin/attributes");
       const list = Array.isArray(res.data) ? res.data : res.data?.data || [];
       setAllAttributes(list);
-    } catch { }
+    } catch (err) {
+      console.error(err);
+    }
   };
 
-  // Load attributes theo danh mục
   const loadAttributesByCategory = async (categoryId: string) => {
     if (!categoryId) {
       setCategoryAttributes([]);
@@ -122,7 +161,7 @@ export default function ProductsPage() {
     }
     try {
       const res = await api.get(`admin/attributes-by-category/${categoryId}`);
-      const list = Array.isArray(res.data) ? res.data : res.data?.data || res.data || [];
+      const list = Array.isArray(res.data) ? res.data : res.data?.data || [];
       setCategoryAttributes(list);
     } catch (err) {
       console.error("Lỗi load attributes theo danh mục:", err);
@@ -137,152 +176,90 @@ export default function ProductsPage() {
     fetchAllAttributes();
   }, []);
 
-  useEffect(() => setCurrentPage(1), [searchTerm, categoryFilter]);
+  useEffect(() => {
+    // Reset current page when filters change
+    setCurrentPage(1);
+  }, [searchTerm, categoryFilter]);
 
-  // ==================== FORM HANDLERS ====================
+  // ====================
+  // Form helpers
+  // ====================
   const openForm = (product?: Product) => {
-  if (product) {
-    setEditingProductId(product.id);
+    if (product) {
+      setEditingProductId(product.id);
+      const mappedAttributes = (product.attributes || []).map(a => ({
+        attribute_id: String(a.attribute_id),
+        attribute_name: a.attribute?.name || "",
+        value: a.value || ""
+      }));
 
-    // Map attributes từ backend về đúng format cho form
-    const mappedAttributes = (product.attributes || []).map(a => ({
-      attribute_id: String(a.attribute_id),
-      attribute_name: a.attribute?.name || "",
-      value: a.value || ""
-    }));
+      setForm({
+        name: product.name || "",
+        description: product.description || "",
+        price: String(product.price || ""),
+        original_price: product.original_price ? String(product.original_price) : "",
+        stock: String(product.stock || 0),
+        category_id: String(product.category_id || ""),
+        image: null,
+        sub_images: [],
+        old_sub_images: product.sub_images ? [...product.sub_images] : [],
+        is_new: !!product.is_new,
+        is_hot: !!product.is_hot,
+        attributes: mappedAttributes
+      });
 
-    setForm({
-      name: product.name,
-      price: String(product.price),
-      original_price: product.original_price ? String(product.original_price) : "",
-      stock: String(product.stock),
-      category_id: String(product.category_id),
-      image: null,
-      is_new: !!product.is_new,
-      is_hot: !!product.is_hot,
-      attributes: mappedAttributes
-    });
+      setImagePreview(product.image ? `http://127.0.0.1:8000/storage/${product.image}` : null);
+      setSubImagePreviews((product.sub_images || []).map(img => `http://127.0.0.1:8000/storage/${img}`));
+      loadAttributesByCategory(String(product.category_id || ""));
+    } else {
+      // New product
+      setEditingProductId(null);
+      setForm({
+        name: "",
+        description: "",
+        price: "",
+        original_price: "",
+        stock: "",
+        category_id: "",
+        image: null,
+        sub_images: [],
+        old_sub_images: [],
+        is_new: false,
+        is_hot: false,
+        attributes: []
+      });
+      setImagePreview(null);
+      setSubImagePreviews([]);
+      setCategoryAttributes([]);
+    }
 
-    // Set nội dung editor
-    editor?.commands.setContent(product.description || "");
-
-    // Set preview ảnh nếu có
-    setImagePreview(product.image ? `http://127.0.0.1:8000/storage/${product.image}` : null);
-
-    // Load attributes theo category hiện tại (nếu muốn thêm mới)
-    loadAttributesByCategory(String(product.category_id));
-
-  } else {
-    // Mở form mới
-    setEditingProductId(null);
-    setForm({
-      name: "",
-      price: "",
-      original_price: "",
-      stock: "",
-      category_id: "",
-      image: null,
-      is_new: false,
-      is_hot: false,
-      attributes: []
-    });
-    editor?.commands.setContent("");
-    setImagePreview(null);
-    setCategoryAttributes([]);
-  }
-
-  setShowForm(true);
+    setShowForm(true);
   };
 
   const closeForm = () => {
     setShowForm(false);
     setImagePreview(null);
-    editor?.commands.clearContent();
+    setSubImagePreviews([]);
     setCategoryAttributes([]);
   };
 
   const handleCategoryChange = (categoryId: string) => {
-    setForm({ ...form, category_id: categoryId, attributes: [] }); // Reset attributes khi đổi danh mục
+    setForm({ ...form, category_id: categoryId, attributes: [] });
     loadAttributesByCategory(categoryId);
   };
 
   const addAttributeField = () => setForm({ ...form, attributes: [...form.attributes, { attribute_id: "", value: "" }] });
   const removeAttributeField = (i: number) => setForm({ ...form, attributes: form.attributes.filter((_, idx) => idx !== i) });
-
   const updateAttribute = (i: number, field: "attribute_id" | "value", val: string) => {
     const updated = [...form.attributes];
+    // @ts-ignore
     updated[i][field] = val;
     setForm({ ...form, attributes: updated });
   };
 
-  const saveProduct = async () => {
-  if (!form.name.trim() || !form.price || !form.stock || !form.category_id) {
-    toast.error("Vui lòng điền đầy đủ thông tin bắt buộc!");
-    return;
-  }
-
-  setLoading(true);
-
-  try {
-    // 1️⃣ Lưu product chính
-    const productData = new FormData();
-    productData.append("name", form.name.trim());
-    productData.append("price", form.price);
-    form.original_price?.trim() && productData.append("original_price", form.original_price);
-    productData.append("stock", form.stock);
-    productData.append("category_id", form.category_id);
-    productData.append("description", editor?.getHTML() || "");
-    productData.append("is_new", form.is_new ? "1" : "0");
-    productData.append("is_hot", form.is_hot ? "1" : "0");
-    form.image && productData.append("image", form.image);
-
-    if (editingProductId) productData.append("_method", "PUT");
-
-    const resProduct = editingProductId
-      ? await api.post(`/products/${editingProductId}`, productData)
-      : await api.post("/products", productData);
-
-    const productId = editingProductId ? editingProductId : resProduct.data.id;
-
-    // 2️⃣ Lưu tất cả attributes
-    for (const attr of form.attributes) {
-      if (!attr.attribute_id || !attr.value?.trim()) continue;
-
-      try {
-        await api.post(`admin/products/${productId}/attributes`, {
-          attribute_id: attr.attribute_id,
-          value: attr.value.trim(),
-        });
-      } catch (err: any) {
-        console.error("Lỗi lưu attribute:", err.response?.data || err.message);
-        toast.error(
-          `Không lưu được thuộc tính ${attr.attribute_name || attr.attribute_id}: ${
-            err.response?.data?.message || err.message || "Lỗi không xác định"
-          }`
-        );
-      }
-    }
-
-    toast.success("Lưu sản phẩm thành công!");
-    fetchProducts();
-    closeForm();
-  } catch (err: any) {
-    console.error("Lỗi lưu sản phẩm:", err.response?.data || err.message);
-    toast.error(err.response?.data?.message || err.message || "Lưu thất bại!");
-  } finally {
-    setLoading(false);
-  }
-};
-
-  const deleteProduct = async (id: number) => {
-    if (!confirm("Xóa sản phẩm này?")) return;
-    try {
-      await api.delete(`/products/${id}`);
-      toast.success("Xóa thành công!");
-      fetchProducts();
-    } catch { toast.error("Xóa thất bại!"); }
-  };
-
+  // ====================
+  // Image handlers (main image)
+  // ====================
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -294,18 +271,134 @@ export default function ProductsPage() {
     reader.readAsDataURL(file);
   };
 
-  const formatVND = (n: number) => new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND", minimumFractionDigits: 0 }).format(n);
-  const calculateDiscount = (orig: number | null | undefined, sale: number) => orig && orig > sale ? Math.round(((orig - sale) / orig) * 100) : null;
+  // ====================
+  // Sub images handlers
+  // ====================
+  // Accepts multiple files, pushes them into form.sub_images and also creates local previews appended after existing previews
+  const handleSubImagesChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+    const newFiles: File[] = [];
+    const readers: Promise<string>[] = [];
 
-  // ==================== FILTER & PAGINATION ====================
+    Array.from(files).forEach((file) => {
+      if (!['image/jpeg', 'image/png', 'image/jpg', 'image/webp'].includes(file.type)) {
+        toast.error("Chỉ chấp nhận ảnh (jpg/png/webp)!");
+        return;
+      }
+      if (file.size > 2 * 1024 * 1024) {
+        toast.error("Ảnh không quá 2MB!");
+        return;
+      }
+      newFiles.push(file);
+      readers.push(new Promise((resolve) => {
+        const r = new FileReader();
+        r.onloadend = () => resolve(r.result as string);
+        r.readAsDataURL(file);
+      }));
+    });
+
+    // Update files immediately
+    setForm(prev => ({ ...prev, sub_images: [...prev.sub_images, ...newFiles] }));
+
+    // When readers done, append previews
+    Promise.all(readers).then(results => {
+      setSubImagePreviews(prev => [...prev, ...results]);
+    }).catch(err => {
+      console.error(err);
+    });
+  };
+
+  // Remove sub image: if index is within old_sub_images length, remove from old_sub_images; otherwise remove from sub_images
+  const removeSubImage = (index: number) => {
+    // If target index less than old_sub_images length -> removing an existing image
+    if (index < form.old_sub_images.length) {
+      const newOld = [...form.old_sub_images];
+      newOld.splice(index, 1);
+      setForm({ ...form, old_sub_images: newOld });
+      const previews = [...subImagePreviews];
+      previews.splice(index, 1);
+      setSubImagePreviews(previews);
+      return;
+    }
+    // Else remove from new uploads
+    const newIndex = index - form.old_sub_images.length;
+    const newFiles = [...form.sub_images];
+    newFiles.splice(newIndex, 1);
+    setForm({ ...form, sub_images: newFiles });
+    const previews = [...subImagePreviews];
+    previews.splice(index, 1);
+    setSubImagePreviews(previews);
+  };
+
+  // Helper to clear previews and revoke object URLs if created via URL.createObjectURL (here we used FileReader, so not needed to revoke)
+  const clearPreviews = () => {
+    setSubImagePreviews([]);
+  };
+
+  // ====================
+  // Save product (create or update)
+  // ====================
+  const saveProduct = async () => {
+  const productData = new FormData();
+  productData.append("name", form.name.trim());
+  productData.append("price", form.price);
+  productData.append("stock", form.stock);
+  productData.append("category_id", form.category_id);
+  productData.append("is_new", form.is_new ? "1" : "0");
+  productData.append("is_hot", form.is_hot ? "1" : "0");
+
+  if (form.image) productData.append("image", form.image);
+
+  form.old_sub_images.forEach(path => productData.append("old_sub_images[]", path));
+  form.sub_images.forEach(file => productData.append("sub_images[]", file));
+
+  // Thêm attributes theo index: attributes[0][attribute_id], attributes[0][value]
+  form.attributes.forEach((attr, idx) => {
+    if (!attr.attribute_id) return;
+    productData.append(`attributes[${idx}][attribute_id]`, attr.attribute_id);
+    productData.append(`attributes[${idx}][value]`, attr.value || "");
+  });
+
+  if (editingProductId) {
+    productData.append("_method", "PUT");
+  }
+
+  const res = editingProductId
+    ? await api.post(`/products/${editingProductId}`, productData)
+    : await api.post("/products", productData);
+
+  toast.success("Lưu sản phẩm thành công!");
+  fetchProducts();
+  closeForm();
+};
+
+  // ====================
+  // Delete product
+  // ====================
+  const deleteProduct = async (id: number) => {
+    if (!confirm("Xóa sản phẩm này?")) return;
+    try {
+      await api.delete(`/products/${id}`);
+      toast.success("Xóa thành công!");
+      fetchProducts();
+    } catch (err) {
+      console.error(err);
+      toast.error("Xóa thất bại!");
+    }
+  };
+
+  // ====================
+  // Pagination & Filters
+  // ====================
   const filteredProducts = Array.isArray(products)
     ? products.filter(p =>
-        p.name.toLowerCase().includes(searchTerm.toLowerCase()) &&
-        (!categoryFilter || String(p.category_id) === categoryFilter)
-      )
+      p.name.toLowerCase().includes(searchTerm.toLowerCase()) &&
+      (!categoryFilter || String(p.category_id) === categoryFilter)
+    )
     : [];
 
-  const totalPages = Math.ceil(filteredProducts.length / ITEMS_PER_PAGE);
+  const totalPages = Math.max(1, Math.ceil(filteredProducts.length / ITEMS_PER_PAGE));
   const currentProducts = filteredProducts.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE);
 
   const goToPage = (page: number) => {
@@ -315,7 +408,11 @@ export default function ProductsPage() {
     }
   };
 
-  if (!editor) return <div className="flex justify-center p-20"><Loader2 className="w-12 h-12 animate-spin text-indigo-600" /></div>;
+  // ====================
+  // Utility functions
+  // ====================
+  const formatVND = (n: number) => new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND", minimumFractionDigits: 0 }).format(n);
+  const calculateDiscount = (orig: number | null | undefined, sale: number) => orig && orig > sale ? Math.round(((orig - sale) / orig) * 100) : null;
 
   return (
     <>
@@ -401,6 +498,16 @@ export default function ProductsPage() {
                             <Box className="w-4 h-4" />
                             <span>{p.stock} cái</span>
                           </div>
+
+                          {/* SUB IMAGES PREVIEW ON CARD */}
+                          {p.sub_images && p.sub_images.length > 0 && (
+                            <div className="mt-3 flex items-center gap-2">
+                              {p.sub_images.slice(0, 4).map((si, idx) => (
+                                <img key={idx} src={`http://127.0.0.1:8000/storage/${si}`} alt={`sub-${idx}`} className="w-10 h-10 object-cover rounded-md border" />
+                              ))}
+                              {p.sub_images.length > 4 && <span className="text-xs text-gray-400">+{p.sub_images.length - 4}</span>}
+                            </div>
+                          )}
                         </div>
 
                         <div className="absolute top-3 right-3 flex flex-col gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
@@ -506,36 +613,57 @@ export default function ProductsPage() {
                       </div>
                     </div>
 
-                    {/* THUỘC TÍNH ĐỘNG */}
+                    {/* SUB IMAGES */}
+                    <div>
+                      <label className="flex items-center gap-2 text-sm font-semibold text-gray-700 mb-2"><ImageIcon className="w-4 h-4" /> Ảnh phụ</label>
+                      <div className="border-2 border-dashed border-gray-300 rounded-xl p-4">
+                        <input type="file" accept="image/*" multiple onChange={handleSubImagesChange} className="mb-3" />
+                        <div className="grid grid-cols-3 gap-3">
+                          {(form.old_sub_images.length + form.sub_images.length) === 0 && (
+                            <p className="text-sm text-gray-400">Chưa có ảnh phụ</p>
+                          )}
+                          {form.old_sub_images.map((path, idx) => (
+                            <div key={`old-${idx}`} className="relative group">
+                              <img src={`http://127.0.0.1:8000/storage/${path}`} className="w-full h-24 object-cover rounded-lg" />
+                              <button onClick={() => removeSubImage(idx)} className="absolute top-1 right-1 bg-red-600 text-white text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100">X</button>
+                            </div>
+                          ))}
+                          {form.sub_images.map((file, idx) => {
+                            const previewIndex = idx + form.old_sub_images.length;
+                            const preview = subImagePreviews[previewIndex] || URL.createObjectURL(file);
+                            return (
+                              <div key={`new-${idx}`} className="relative group">
+                                <img src={preview} className="w-full h-24 object-cover rounded-lg" />
+                                <button onClick={() => removeSubImage(form.old_sub_images.length + idx)} className="absolute top-1 right-1 bg-red-600 text-white text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100">X</button>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* ATTRIBUTES */}
                     <div>
                       <div className="flex items-center justify-between mb-4">
                         <label className="flex items-center gap-2 text-sm font-semibold text-gray-700"><Settings className="w-4 h-4" /> Thông số kỹ thuật</label>
-                        <button onClick={addAttributeField} className="text-indigo-600 hover:text-indigo-700 font-medium text-sm flex items-center gap-1">
-                          <Plus className="w-4 h-4" /> Thêm thuộc tính
-                        </button>
+                        <button onClick={addAttributeField} className="text-indigo-600 hover:text-indigo-700 font-medium text-sm flex items-center gap-1"><Plus className="w-4 h-4" /> Thêm thuộc tính</button>
                       </div>
                       <div className="space-y-3">
                         {form.attributes.length === 0 && (
-                          <p className="text-sm text-gray-400 italic py-4 text-center bg-gray-50 rounded-lg">
-                            {form.category_id ? "Chưa có thuộc tính nào cho danh mục này" : "Vui lòng chọn danh mục trước"}
-                          </p>
+                          <p className="text-sm text-gray-400 italic py-4 text-center bg-gray-50 rounded-lg">{form.category_id ? "Chưa có thuộc tính nào cho danh mục này" : "Vui lòng chọn danh mục trước"}</p>
                         )}
                         {form.attributes.map((attr, i) => (
                           <div key={i} className="flex gap-3 items-end">
                             <div className="flex-1">
-                              <select value={attr.attribute_id} onChange={e => updateAttribute(i, "attribute_id", e.target.value)}
-                                className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none text-sm">
+                              <select value={attr.attribute_id} onChange={e => updateAttribute(i, "attribute_id", e.target.value)} className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none text-sm">
                                 <option value="">Chọn thuộc tính</option>
                                 {categoryAttributes.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
                               </select>
                             </div>
                             <div className="flex-1">
-                              <input type="text" value={attr.value || ""} onChange={e => updateAttribute(i, "value", e.target.value)}
-                                placeholder="Giá trị (VD: Space Gray, 256GB)" className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 outline-none text-sm" />
+                              <input type="text" value={attr.value || ""} onChange={e => updateAttribute(i, "value", e.target.value)} placeholder="Giá trị (VD: Space Gray, 256GB)" className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 outline-none text-sm" />
                             </div>
-                            <button onClick={() => removeAttributeField(i)} className="p-2.5 text-red-600 hover:bg-red-50 rounded-lg">
-                              <Trash className="w-4 h-4" />
-                            </button>
+                            <button onClick={() => removeAttributeField(i)} className="p-2.5 text-red-600 hover:bg-red-50 rounded-lg"><Trash className="w-4 h-4" /></button>
                           </div>
                         ))}
                       </div>
@@ -544,7 +672,10 @@ export default function ProductsPage() {
                     <div>
                       <label className="flex items-center gap-2 text-sm font-semibold text-gray-700 mb-2">Mô tả chi tiết</label>
                       <div className="border border-gray-300 rounded-xl overflow-hidden focus-within:ring-4 focus-within:ring-indigo-500/20">
-                        <EditorContent editor={editor} />
+                        <TiptapEditor
+                          value={form.description}
+                          onChange={(html) => setForm({ ...form, description: html })}
+                        />
                       </div>
                     </div>
                   </div>
@@ -552,8 +683,7 @@ export default function ProductsPage() {
 
                 <div className="sticky bottom-0 bg-white border-t border-gray-200 p-6 flex justify-end gap-4">
                   <button onClick={closeForm} className="px-6 py-3 border border-gray-300 rounded-xl font-semibold hover:bg-gray-50">Hủy</button>
-                  <button onClick={saveProduct} disabled={loading}
-                    className="flex items-center gap-3 px-8 py-3 bg-gradient-to-r from-emerald-500 to-teal-600 text-white font-bold rounded-xl hover:from-emerald-600 hover:to-teal-700 disabled:opacity-60 shadow-lg transform hover:scale-105">
+                  <button onClick={saveProduct} disabled={loading} className="flex items-center gap-3 px-8 py-3 bg-gradient-to-r from-emerald-500 to-teal-600 text-white font-bold rounded-xl hover:from-emerald-600 hover:to-teal-700 disabled:opacity-60 shadow-lg transform hover:scale-105">
                     {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : <Save className="w-5 h-5" />}
                     {loading ? "Đang lưu..." : "Lưu sản phẩm"}
                   </button>
