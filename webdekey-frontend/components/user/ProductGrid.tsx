@@ -25,15 +25,15 @@ export default function ProductGrid() {
     const fetchProducts = async () => {
       try {
         const res = await api.get("/products");
-        
-        // SỬA Ở ĐÂY: lấy mảng thật sự nằm trong data.data
-        const allProducts = Array.isArray(res.data) 
-        ? res.data 
-        : res.data.data || [];
 
-        const featuredProducts = allProducts.filter((p: Product) =>
-          p.is_new === true || p.is_hot === true
-        );
+        const allProducts = Array.isArray(res.data)
+          ? res.data
+          : res.data.data || [];
+
+        // Lấy sản phẩm nổi bật + giới hạn tối đa 10
+        const featuredProducts = allProducts
+          .filter((p: Product) => p.is_new === true || p.is_hot === true)
+          .slice(0, 10);
 
         setProducts(featuredProducts);
       } catch (err) {
@@ -68,7 +68,9 @@ export default function ProductGrid() {
           <Sparkles className="w-16 h-16 mx-auto" />
         </div>
         <p className="text-lg text-gray-600">Chưa có sản phẩm nổi bật nào!</p>
-        <p className="text-sm text-gray-500 mt-2">Hãy thêm sản phẩm MỚI hoặc HOT trong admin nhé!</p>
+        <p className="text-sm text-gray-500 mt-2">
+          Hãy thêm sản phẩm MỚI hoặc HOT trong admin nhé!
+        </p>
       </div>
     );
   }
@@ -85,21 +87,12 @@ export default function ProductGrid() {
         <p className="text-gray-600 mt-2">Những món hàng đang HOT nhất hôm nay!</p>
       </div>
 
-      {/* Grid chỉ hiển thị MỚI & HOT */}
+      {/* Grid */}
       <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
         {products.map((product) => (
           <ProductCard key={product.id} product={product} />
         ))}
       </div>
-
-      {/* Xem thêm nếu muốn */}
-      {products.length >= 10 && (
-        <div className="mt-10 text-center">
-          <button className="px-8 py-3 bg-gradient-to-r from-indigo-600 to-purple-600 text-white font-semibold rounded-xl hover:from-indigo-700 hover:to-purple-700 transition-all shadow-lg hover:shadow-xl transform hover:scale-105">
-            Xem thêm sản phẩm
-          </button>
-        </div>
-      )}
     </div>
   );
 }
