@@ -203,7 +203,7 @@ export default function CartPage() {
       <>
         <Header />
         <div className="min-h-screen flex items-center justify-center pt-24">
-          <div className="text-center text-black">
+          <div className="text-center">
             <h1 className="text-2xl font-bold mb-4">Giỏ hàng trống</h1>
             <button
               onClick={() => router.push("/")}
