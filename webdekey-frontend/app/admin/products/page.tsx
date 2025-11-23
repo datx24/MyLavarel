@@ -283,6 +283,7 @@ export default function ProductsPage() {
     try {
       const productData = new FormData();
       productData.append("name", form.name.trim());
+      productData.append("description", form.description);
       productData.append("price", form.price);
       productData.append("stock", form.stock);
       productData.append("category_id", form.category_id);
