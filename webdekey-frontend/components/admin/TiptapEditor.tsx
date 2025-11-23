@@ -10,7 +10,8 @@ import {
   Bold, Italic, Strikethrough, Code,
   List, ListOrdered, Quote, Undo, Redo,
   AlignLeft, AlignCenter, AlignRight, AlignJustify,
-  Image as ImageIcon, Link, Palette
+  Image as ImageIcon, Link, Palette,
+  Upload
 } from 'lucide-react';
 import { useState, useCallback } from 'react';
 import { TextStyle } from '@tiptap/extension-text-style';
@@ -25,6 +26,7 @@ export default function TiptapEditor({ value, onChange }: Props) {
   const [linkUrl, setLinkUrl] = useState('');
   const [showImageModal, setShowImageModal] = useState(false);
   const [showLinkModal, setShowLinkModal] = useState(false);
+  const [fileName, setFileName] = useState<string>('Chưa chọn file nào');
 
   const editor = useEditor({
     immediatelyRender: false,
@@ -95,7 +97,7 @@ export default function TiptapEditor({ value, onChange }: Props) {
   return (
     <div className="border border-gray-300 rounded-xl overflow-hidden bg-white shadow-lg">
       {/* Toolbar */}
-      <div className="flex flex-wrap items-center gap-2 p-4 border-b border-gray-200 bg-gradient-to-r from-blue-50 to-indigo-50">
+      <div className="text-black flex flex-wrap items-center gap-2 p-4 border-b border-gray-200 bg-gradient-to-r from-blue-50 to-indigo-50">
 
         {/* History */}
         <div className="flex items-center gap-1">
@@ -259,7 +261,7 @@ export default function TiptapEditor({ value, onChange }: Props) {
           </button>
           <button
             onClick={() => setShowImageModal(true)}
-            className="p-2 hover:bg-orange-100 rounded-lg transition-all group"
+            className="text-black p-2 hover:bg-orange-100 rounded-lg transition-all group"
             title="Chèn ảnh"
           >
             <ImageIcon className="w-4 h-4" />
@@ -315,22 +317,41 @@ export default function TiptapEditor({ value, onChange }: Props) {
       {showImageModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white p-6 rounded-xl w-96">
-            <h3 className="text-lg font-semibold mb-4">Chèn ảnh</h3>
+            <h3 className="text-lg font-semibold mb-4 text-black">Chèn ảnh</h3>
             <div className="space-y-4">
               <input
                 type="text"
                 placeholder="Nhập URL ảnh..."
                 value={imageUrl}
                 onChange={(e) => setImageUrl(e.target.value)}
-                className="w-full p-2 border border-gray-300 rounded"
+                className="w-full p-2 border border-gray-300 rounded text-black"
               />
               <div className="text-center text-gray-500">hoặc</div>
-              <input
-                type="file"
-                accept="image/*"
-                onChange={handleImageUpload}
-                className="w-full"
-              />
+              <div className="w-full max-w-md">
+                <label className="flex flex-col items-center justify-center w-full h-64 border-2 border-dashed border-gray-300 rounded-xl cursor-pointer bg-gray-50 hover:bg-gray-100 transition">
+                  <div className="flex flex-col items-center justify-center pt-5 pb-6">
+                    <Upload className="w-12 h-12 mb-4 text-gray-400" />
+                    <p className="mb-2 text-sm text-gray-600">
+                      <span className="font-semibold">Click để tải lên</span> hoặc kéo thả
+                    </p>
+                    <p className="text-xs text-gray-500">PNG, JPG, GIF tối đa 10MB</p>
+                  </div>
+
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={handleImageUpload}
+                    className="hidden"
+                  />
+                </label>
+
+                {fileName !== 'Chưa chọn file nào' && (
+                  <p className="mt-3 text-sm text-gray-700 flex items-center gap-2">
+                    <ImageIcon className="w-4 h-4" />
+                    {fileName}
+                  </p>
+                )}
+              </div>
               <div className="flex gap-2 justify-end">
                 <button
                   onClick={() => setShowImageModal(false)}
@@ -387,6 +408,7 @@ export default function TiptapEditor({ value, onChange }: Props) {
           padding: 1rem;
           min-height: 300px;
           outline: none;
+          color: black;
         }
 
         .ProseMirror h1 {
